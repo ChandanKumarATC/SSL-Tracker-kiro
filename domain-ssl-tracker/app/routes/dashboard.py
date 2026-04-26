@@ -1,0 +1,156 @@
+from fastapi import APIRouter, Depends, Request, Form, HTTPException
+from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
+from fastapi.templating import Jinja2Templates
+from sqlalchemy.orm import Session
+from datetime import datetime
+import io
+
+from app.database import get_db
+from app.models.domain import Domain
+from app.services.checker import run_all_checks, check_and_update_domain
+from app.services.export_service import export_domains_csv
+
+router = APIRouter()
+templates = Jinja2Templates(directory="app/templates")
+
+
+def _days_until(expiry_date: datetime | None) -> int | None:
+    if expiry_date is None:
+        return None
+    return (expiry_date - datetime.utcnow()).days
+
+
+def _status_label(days: int | None) -> str:
+    if days is None:
+        return "unknown"
+    if days < 0:
+        return "expired"
+    if days <= 14:
+        return "critical"
+    if days <= 30:
+        return "warning"
+    return "safe"
+
+
+def _enrich(domain: Domain) -> dict:
+    ssl_days = _days_until(domain.ssl_expiry_date)
+    domain_days = _days_until(domain.domain_expiry_date)
+
+    # Overall urgency: use the smallest non-None days value
+    candidates = [d for d in [ssl_days, domain_days] if d is not None]
+    min_days = min(candidates) if candidates else None
+
+    return {
+        "id": domain.id,
+        "domain_name": domain.domain_name,
+        "ssl_expiry_date": domain.ssl_expiry_date,
+        "ssl_type": domain.ssl_type,
+        "ssl_issuer": domain.ssl_issuer,
+        "ssl_error": domain.ssl_error,
+        "domain_expiry_date": domain.domain_expiry_date,
+        "last_checked": domain.last_checked,
+        "ssl_days": ssl_days,
+        "domain_days": domain_days,
+        "ssl_status": _status_label(ssl_days),
+        "domain_status": _status_label(domain_days),
+        "min_days": min_days if min_days is not None else 9999,
+    }
+
+
+@router.get("/", response_class=HTMLResponse)
+def dashboard(request: Request, db: Session = Depends(get_db)):
+    """Main dashboard — sorted by nearest expiry first."""
+    domains = db.query(Domain).all()
+    enriched = sorted([_enrich(d) for d in domains], key=lambda x: x["min_days"])
+    return templates.TemplateResponse("dashboard.html", {
+        "request": request,
+        "domains": enriched,
+        "now": datetime.utcnow(),
+    })
+
+
+@router.post("/add-domain", response_class=RedirectResponse)
+def add_domain_form(
+    request: Request,
+    domain_name: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    """Handle add-domain form submission."""
+    domain_name = domain_name.strip().lower()
+    domain_name = domain_name.replace("https://", "").replace("http://", "").split("/")[0]
+
+    existing = db.query(Domain).filter(Domain.domain_name == domain_name).first()
+    if not existing:
+        new_domain = Domain(domain_name=domain_name)
+        db.add(new_domain)
+        db.commit()
+
+    return RedirectResponse(url="/", status_code=303)
+
+
+@router.post("/delete-domain/{domain_id}", response_class=RedirectResponse)
+def delete_domain_form(domain_id: int, db: Session = Depends(get_db)):
+    """Handle delete button from dashboard."""
+    domain = db.query(Domain).filter(Domain.id == domain_id).first()
+    if domain:
+        db.delete(domain)
+        db.commit()
+    return RedirectResponse(url="/", status_code=303)
+
+
+@router.post("/check-domain/{domain_id}", response_class=RedirectResponse)
+def check_domain_form(domain_id: int, db: Session = Depends(get_db)):
+    """Trigger a check for a single domain from the dashboard."""
+    domain = db.query(Domain).filter(Domain.id == domain_id).first()
+    if domain:
+        check_and_update_domain(db, domain)
+    return RedirectResponse(url="/", status_code=303)
+
+
+@router.post("/check-all", response_class=RedirectResponse)
+def check_all_form(db: Session = Depends(get_db)):
+    """Trigger checks for all domains from the dashboard."""
+    run_all_checks(db)
+    return RedirectResponse(url="/", status_code=303)
+
+
+@router.post("/edit-domain/{domain_id}", response_class=RedirectResponse)
+def edit_domain_form(
+    domain_id: int,
+    domain_name: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    """Handle inline edit of domain name from dashboard."""
+    domain = db.query(Domain).filter(Domain.id == domain_id).first()
+    if domain:
+        new_name = domain_name.strip().lower()
+        new_name = new_name.replace("https://", "").replace("http://", "").split("/")[0]
+        if new_name and "." in new_name:
+            conflict = db.query(Domain).filter(
+                Domain.domain_name == new_name, Domain.id != domain_id
+            ).first()
+            if not conflict:
+                domain.domain_name = new_name
+                # Reset all check data so it gets re-checked fresh
+                domain.ssl_expiry_date = None
+                domain.ssl_type = None
+                domain.ssl_issuer = None
+                domain.ssl_error = None
+                domain.domain_expiry_date = None
+                domain.last_checked = None
+                domain.alert_sent_ssl = False
+                domain.alert_sent_domain = False
+                db.commit()
+    return RedirectResponse(url="/", status_code=303)
+
+
+@router.get("/export-csv")
+def export_csv(db: Session = Depends(get_db)):
+    """Download all domains as a CSV file."""
+    csv_content = export_domains_csv(db)
+    filename = f"domains_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.csv"
+    return StreamingResponse(
+        io.StringIO(csv_content),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
