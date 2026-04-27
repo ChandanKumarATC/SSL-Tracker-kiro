@@ -175,7 +175,9 @@
                             type="button"
                             class="btn btn-sm btn-secondary"
                             title="Edit domain"
-                            onclick="openEdit({{ d.id }}, '{{ d.domain_name }}')"
+                            data-id="{{ d.id }}"
+                            data-name="{{ d.domain_name }}"
+                            onclick="openEdit(this)"
                         >✏</button>
 
                         <!-- Check now -->
@@ -222,9 +224,11 @@
 </footer>
 
 <script>
-function openEdit(id, currentName) {
+function openEdit(btn) {
+    var id = btn.getAttribute('data-id');
+    var name = btn.getAttribute('data-name');
     document.getElementById('edit-form').action = '/edit-domain/' + id;
-    document.getElementById('edit-input').value = currentName;
+    document.getElementById('edit-input').value = name;
     document.getElementById('edit-modal').style.display = 'flex';
     document.getElementById('edit-input').focus();
 }
