@@ -54,27 +54,39 @@
     {% if domains %}
     <section class="card table-card">
         <div class="table-wrapper">
-            <table>
+            <!--
+                data-sort-col  : currently sorted column index (2 = SSL Days)
+                data-sort-dir  : "asc" or "desc"
+                Each <th data-col="N"> is clickable to sort by that column.
+                Each <tr> carries data-ssl and data-domain (numeric days, 99999 if unknown).
+            -->
+            <table id="domain-table" data-sort-col="3" data-sort-dir="asc">
                 <thead>
                     <tr>
-                        <th>#</th>
-                        <th>Domain</th>
-                        <th>SSL Expiry</th>
-                        <th>SSL Days Left</th>
-                        <th>Domain Expiry</th>
-                        <th>Domain Days Left</th>
-                        <th>Status</th>
-                        <th>SSL Type</th>
-                        <th>SSL Issuer</th>
-                        <th>Last Checked</th>
+                        <th class="col-num">#</th>
+                        <th data-col="1" class="sortable">Domain <span class="sort-icon"></span></th>
+                        <th data-col="2" class="sortable">SSL Expiry <span class="sort-icon"></span></th>
+                        <th data-col="3" class="sortable th-active">SSL Days Left <span class="sort-icon">▲</span></th>
+                        <th data-col="4" class="sortable">Domain Expiry <span class="sort-icon"></span></th>
+                        <th data-col="5" class="sortable">Domain Days Left <span class="sort-icon"></span></th>
+                        <th data-col="6" class="sortable">Status <span class="sort-icon"></span></th>
+                        <th data-col="7">SSL Type</th>
+                        <th data-col="8">SSL Issuer</th>
+                        <th data-col="9" class="sortable">Last Checked <span class="sort-icon"></span></th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                 {% for d in domains %}
-                <tr class="row-{{ d.ssl_status if d.ssl_status != 'safe' else d.domain_status }}">
+                <!--
+                    data-ssl    : SSL days remaining (99999 if unknown, negative if expired)
+                    data-domain : Domain days remaining (99999 if unknown, negative if expired)
+                -->
+                <tr class="row-{{ d.ssl_status if d.ssl_status != 'safe' else d.domain_status }}"
+                    data-ssl="{{ d.ssl_days if d.ssl_days is not none else 99999 }}"
+                    data-domain="{{ d.domain_days if d.domain_days is not none else 99999 }}">
 
-                    <!-- 1. Row number -->
+                    <!-- 1. Row number (updated by JS after sort) -->
                     <td class="row-num">{{ loop.index }}</td>
 
                     <!-- 2. Domain Name -->
@@ -86,7 +98,7 @@
                     </td>
 
                     <!-- 3. SSL Expiry Date -->
-                    <td>
+                    <td data-val="{{ d.ssl_expiry_date.strftime('%Y-%m-%d') if d.ssl_expiry_date else '9999-99-99' }}">
                         {% if d.ssl_expiry_date %}
                             {{ d.ssl_expiry_date.strftime('%Y-%m-%d') }}
                         {% else %}
@@ -95,7 +107,7 @@
                     </td>
 
                     <!-- 4. SSL Days Remaining -->
-                    <td>
+                    <td data-val="{{ d.ssl_days if d.ssl_days is not none else 99999 }}">
                         {% if d.ssl_days is not none %}
                             <span class="badge {{ d.ssl_status }}">
                                 {% if d.ssl_days < 0 %}Expired{% else %}{{ d.ssl_days }}d{% endif %}
@@ -106,7 +118,7 @@
                     </td>
 
                     <!-- 5. Domain Expiry Date -->
-                    <td>
+                    <td data-val="{{ d.domain_expiry_date.strftime('%Y-%m-%d') if d.domain_expiry_date else '9999-99-99' }}">
                         {% if d.domain_expiry_date %}
                             {{ d.domain_expiry_date.strftime('%Y-%m-%d') }}
                         {% else %}
@@ -115,7 +127,7 @@
                     </td>
 
                     <!-- 6. Domain Days Remaining -->
-                    <td>
+                    <td data-val="{{ d.domain_days if d.domain_days is not none else 99999 }}">
                         {% if d.domain_days is not none %}
                             <span class="badge {{ d.domain_status }}">
                                 {% if d.domain_days < 0 %}Expired{% else %}{{ d.domain_days }}d{% endif %}
@@ -126,7 +138,7 @@
                     </td>
 
                     <!-- 7. Overall Status -->
-                    <td>
+                    <td data-val="{{ d.ssl_days if d.ssl_days is not none else 99999 }}">
                         {% set worst = d.ssl_status if d.ssl_status != 'safe' else d.domain_status %}
                         {% if worst == 'expired' %}
                             <span class="badge expired">Expired</span>
@@ -160,7 +172,7 @@
                     </td>
 
                     <!-- 10. Last Checked -->
-                    <td class="last-checked">
+                    <td class="last-checked" data-val="{{ d.last_checked.strftime('%Y-%m-%d %H:%M') if d.last_checked else '0000-00-00 00:00' }}">
                         {% if d.last_checked %}
                             {{ d.last_checked.strftime('%Y-%m-%d %H:%M') }}
                         {% else %}
@@ -170,7 +182,6 @@
 
                     <!-- 11. Actions -->
                     <td class="actions">
-                        <!-- Edit button → opens modal -->
                         <button
                             type="button"
                             class="btn btn-sm btn-secondary"
@@ -180,12 +191,10 @@
                             onclick="openEdit(this)"
                         >✏</button>
 
-                        <!-- Check now -->
                         <form method="post" action="/check-domain/{{ d.id }}" style="display:inline;">
                             <button type="submit" class="btn btn-sm btn-secondary" title="Check now">🔄</button>
                         </form>
 
-                        <!-- Delete -->
                         <form method="post" action="/delete-domain/{{ d.id }}" style="display:inline;"
                               onsubmit="return confirm('Delete {{ d.domain_name }}?')">
                             <button type="submit" class="btn btn-sm btn-danger" title="Delete">🗑</button>
@@ -220,15 +229,15 @@
 </div>
 
 <footer>
-    <p>Domain &amp; SSL Expiry Tracker &mdash; Alerts: SSL &le;7 days &bull; Domain &le;30 days &bull; <a href="https://ssl.adamastech.in" target="_blank">ssl.adamastech.in</a></p>
+    <p>Domain &amp; SSL Expiry Tracker &mdash; Alerts: SSL &le;7 days &bull; Domain &le;30 days &bull;
+    <a href="https://ssl.adamastech.in" target="_blank">ssl.adamastech.in</a></p>
 </footer>
 
 <script>
+/* ── Edit modal ──────────────────────────────────────────────── */
 function openEdit(btn) {
-    var id = btn.getAttribute('data-id');
-    var name = btn.getAttribute('data-name');
-    document.getElementById('edit-form').action = '/edit-domain/' + id;
-    document.getElementById('edit-input').value = name;
+    document.getElementById('edit-form').action = '/edit-domain/' + btn.getAttribute('data-id');
+    document.getElementById('edit-input').value = btn.getAttribute('data-name');
     document.getElementById('edit-modal').style.display = 'flex';
     document.getElementById('edit-input').focus();
 }
@@ -238,9 +247,92 @@ function closeEdit() {
 function closeEditOnOverlay(e) {
     if (e.target === document.getElementById('edit-modal')) closeEdit();
 }
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') closeEdit();
-});
+document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeEdit(); });
+
+/* ── Table sort ──────────────────────────────────────────────── */
+(function () {
+    var table = document.getElementById('domain-table');
+    if (!table) return;
+
+    var tbody = table.querySelector('tbody');
+    var headers = table.querySelectorAll('th[data-col]');
+
+    // Current sort state (default: col 3 = SSL Days, ascending)
+    var sortCol = parseInt(table.getAttribute('data-sort-col'), 10);
+    var sortDir = table.getAttribute('data-sort-dir'); // "asc" | "desc"
+
+    // Attach click handlers to sortable headers
+    headers.forEach(function (th) {
+        if (!th.classList.contains('sortable')) return;
+        th.style.cursor = 'pointer';
+        th.addEventListener('click', function () {
+            var col = parseInt(th.getAttribute('data-col'), 10);
+            if (col === sortCol) {
+                sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+            } else {
+                sortCol = col;
+                sortDir = 'asc';
+            }
+            applySort();
+        });
+    });
+
+    function getCellValue(row, colIndex) {
+        var cells = row.querySelectorAll('td');
+        var cell = cells[colIndex]; // 0-indexed: col 1 = cells[1], etc.
+        if (!cell) return '';
+        // Prefer data-val for numeric/date columns
+        var val = cell.getAttribute('data-val');
+        if (val !== null) return val;
+        return cell.textContent.trim();
+    }
+
+    function applySort() {
+        var rows = Array.from(tbody.querySelectorAll('tr'));
+        var colIdx = sortCol; // th data-col matches td index (col 1 = td[1])
+
+        rows.sort(function (a, b) {
+            var av = getCellValue(a, colIdx);
+            var bv = getCellValue(b, colIdx);
+
+            // Numeric sort for day columns (3, 4, 5, 6)
+            var numericCols = [3, 4, 5, 6];
+            if (numericCols.indexOf(colIdx) !== -1) {
+                var an = parseFloat(av);
+                var bn = parseFloat(bv);
+                // Push 99999 (unknown) to the bottom regardless of sort direction
+                if (an === 99999 && bn !== 99999) return 1;
+                if (bn === 99999 && an !== 99999) return -1;
+                return sortDir === 'asc' ? an - bn : bn - an;
+            }
+
+            // String / date sort for everything else
+            if (av < bv) return sortDir === 'asc' ? -1 : 1;
+            if (av > bv) return sortDir === 'asc' ? 1 : -1;
+            return 0;
+        });
+
+        // Re-append rows in new order and update row numbers
+        rows.forEach(function (row, i) {
+            row.querySelector('.row-num').textContent = i + 1;
+            tbody.appendChild(row);
+        });
+
+        // Update header indicators
+        headers.forEach(function (th) {
+            th.classList.remove('th-active');
+            var icon = th.querySelector('.sort-icon');
+            if (icon) icon.textContent = '';
+            if (parseInt(th.getAttribute('data-col'), 10) === sortCol) {
+                th.classList.add('th-active');
+                if (icon) icon.textContent = sortDir === 'asc' ? ' ▲' : ' ▼';
+            }
+        });
+    }
+
+    // Run once on load to apply the default sort indicator
+    applySort();
+}());
 </script>
 
 </body>

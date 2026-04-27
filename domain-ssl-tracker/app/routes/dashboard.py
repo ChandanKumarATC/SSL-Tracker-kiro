@@ -59,9 +59,18 @@ def _enrich(domain: Domain) -> dict:
 
 @router.get("/", response_class=HTMLResponse)
 def dashboard(request: Request, db: Session = Depends(get_db)):
-    """Main dashboard — sorted by nearest expiry first."""
+    """Main dashboard — sorted by SSL expiry days ascending (nearest first).
+    Domains with no SSL data yet go to the bottom."""
     domains = db.query(Domain).all()
-    enriched = sorted([_enrich(d) for d in domains], key=lambda x: x["min_days"])
+    enriched = [_enrich(d) for d in domains]
+
+    # Primary sort: SSL days remaining (None → bottom)
+    # Secondary sort: domain days remaining (None → bottom)
+    enriched.sort(key=lambda x: (
+        x["ssl_days"] if x["ssl_days"] is not None else 99999,
+        x["domain_days"] if x["domain_days"] is not None else 99999,
+    ))
+
     return templates.TemplateResponse("dashboard.html", {
         "request": request,
         "domains": enriched,
