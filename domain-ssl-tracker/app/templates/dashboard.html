@@ -57,13 +57,15 @@
             <table>
                 <thead>
                     <tr>
+                        <th>#</th>
                         <th>Domain</th>
                         <th>SSL Expiry</th>
-                        <th>Issuer</th>
-                        <th>SSL Type</th>
                         <th>SSL Days Left</th>
                         <th>Domain Expiry</th>
                         <th>Domain Days Left</th>
+                        <th>Status</th>
+                        <th>SSL Type</th>
+                        <th>SSL Issuer</th>
                         <th>Last Checked</th>
                         <th>Actions</th>
                     </tr>
@@ -72,7 +74,10 @@
                 {% for d in domains %}
                 <tr class="row-{{ d.ssl_status if d.ssl_status != 'safe' else d.domain_status }}">
 
-                    <!-- Domain Name -->
+                    <!-- 1. Row number -->
+                    <td class="row-num">{{ loop.index }}</td>
+
+                    <!-- 2. Domain Name -->
                     <td class="domain-name">
                         <a href="https://{{ d.domain_name }}" target="_blank" rel="noopener">{{ d.domain_name }}</a>
                         {% if d.ssl_error %}
@@ -80,7 +85,7 @@
                         {% endif %}
                     </td>
 
-                    <!-- SSL Expiry -->
+                    <!-- 3. SSL Expiry Date -->
                     <td>
                         {% if d.ssl_expiry_date %}
                             {{ d.ssl_expiry_date.strftime('%Y-%m-%d') }}
@@ -89,25 +94,7 @@
                         {% endif %}
                     </td>
 
-                    <!-- Issuer -->
-                    <td class="issuer-cell">
-                        {% if d.ssl_issuer %}
-                            <span class="issuer-text" title="{{ d.ssl_issuer }}">{{ d.ssl_issuer }}</span>
-                        {% else %}
-                            <span class="na">—</span>
-                        {% endif %}
-                    </td>
-
-                    <!-- SSL Type -->
-                    <td>
-                        {% if d.ssl_type %}
-                            <span class="badge-type {{ d.ssl_type }}">{{ d.ssl_type }}</span>
-                        {% else %}
-                            <span class="na">—</span>
-                        {% endif %}
-                    </td>
-
-                    <!-- SSL Days Left -->
+                    <!-- 4. SSL Days Remaining -->
                     <td>
                         {% if d.ssl_days is not none %}
                             <span class="badge {{ d.ssl_status }}">
@@ -118,7 +105,7 @@
                         {% endif %}
                     </td>
 
-                    <!-- Domain Expiry -->
+                    <!-- 5. Domain Expiry Date -->
                     <td>
                         {% if d.domain_expiry_date %}
                             {{ d.domain_expiry_date.strftime('%Y-%m-%d') }}
@@ -127,7 +114,7 @@
                         {% endif %}
                     </td>
 
-                    <!-- Domain Days Left -->
+                    <!-- 6. Domain Days Remaining -->
                     <td>
                         {% if d.domain_days is not none %}
                             <span class="badge {{ d.domain_status }}">
@@ -138,7 +125,41 @@
                         {% endif %}
                     </td>
 
-                    <!-- Last Checked -->
+                    <!-- 7. Overall Status -->
+                    <td>
+                        {% set worst = d.ssl_status if d.ssl_status != 'safe' else d.domain_status %}
+                        {% if worst == 'expired' %}
+                            <span class="badge expired">Expired</span>
+                        {% elif worst == 'critical' %}
+                            <span class="badge critical">Critical</span>
+                        {% elif worst == 'warning' %}
+                            <span class="badge warning">Warning</span>
+                        {% elif worst == 'safe' %}
+                            <span class="badge safe">Safe</span>
+                        {% else %}
+                            <span class="badge unknown">Unknown</span>
+                        {% endif %}
+                    </td>
+
+                    <!-- 8. SSL Type -->
+                    <td>
+                        {% if d.ssl_type %}
+                            <span class="badge-type {{ d.ssl_type }}">{{ d.ssl_type }}</span>
+                        {% else %}
+                            <span class="na">—</span>
+                        {% endif %}
+                    </td>
+
+                    <!-- 9. SSL Issuer -->
+                    <td class="issuer-cell">
+                        {% if d.ssl_issuer %}
+                            <span class="issuer-text" title="{{ d.ssl_issuer }}">{{ d.ssl_issuer }}</span>
+                        {% else %}
+                            <span class="na">—</span>
+                        {% endif %}
+                    </td>
+
+                    <!-- 10. Last Checked -->
                     <td class="last-checked">
                         {% if d.last_checked %}
                             {{ d.last_checked.strftime('%Y-%m-%d %H:%M') }}
@@ -147,7 +168,7 @@
                         {% endif %}
                     </td>
 
-                    <!-- Actions -->
+                    <!-- 11. Actions -->
                     <td class="actions">
                         <!-- Edit button → opens modal -->
                         <button

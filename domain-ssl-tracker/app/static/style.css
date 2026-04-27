@@ -207,6 +207,9 @@ tbody tr:hover { background: rgba(255,255,255,0.03); }
 .domain-name a { font-weight: 600; color: var(--color-text); }
 .domain-name a:hover { color: var(--color-primary); }
 
+/* Row number */
+.row-num { color: var(--color-muted); font-size: 0.78rem; text-align: right; width: 32px; }
+
 /* SSL error message under domain name */
 .ssl-error {
     font-size: 0.72rem;
