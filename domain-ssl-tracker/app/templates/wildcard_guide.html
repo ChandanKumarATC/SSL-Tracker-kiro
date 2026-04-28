@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Wildcard SSL Guide — Domain & SSL Tracker</title>
+    <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+
+<header>
+    <div class="header-inner">
+        <h1>🔐 Domain &amp; SSL Expiry Tracker</h1>
+        <nav class="header-nav">
+            <a href="/">Dashboard</a>
+            <a href="/settings">Mail Settings</a>
+            <a href="/guide/wildcard-ssl" class="active">Wildcard SSL Guide</a>
+        </nav>
+    </div>
+</header>
+
+<main style="max-width: 860px;">
+
+    <h2 class="page-title">🔒 Free Wildcard SSL Certificate Guide</h2>
+
+    <section class="card">
+        <h2>What is a Wildcard SSL?</h2>
+        <p style="color: var(--color-text); line-height: 1.8;">
+            A wildcard SSL certificate (<code>*.example.com</code>) covers <strong>all subdomains</strong>
+            under a domain with a single certificate — e.g. <code>app.example.com</code>,
+            <code>api.example.com</code>, <code>admin.example.com</code>.<br/><br/>
+            Let's Encrypt issues free wildcard certs, but they require a
+            <strong>DNS-01 challenge</strong> — you prove domain ownership by adding a TXT record to your DNS.
+        </p>
+    </section>
+
+    <!-- ── Manual Method ─────────────────────────────────────── -->
+    <section class="card">
+        <h2>Method 1 — Manual (Any DNS Provider)</h2>
+        <p class="guide-note">Use this if your DNS provider has no API plugin.</p>
+
+        <div class="code-block">
+            <div class="code-label">Install Certbot</div>
+            <pre>sudo apt install certbot</pre>
+        </div>
+
+        <div class="code-block">
+            <div class="code-label">Request wildcard certificate</div>
+            <pre>sudo certbot certonly \
+  --manual \
+  --preferred-challenges dns \
+  -d "*.example.com" \
+  -d "example.com"</pre>
+        </div>
+
+        <p style="margin: 1rem 0 0.5rem; color: var(--color-text);">Certbot will prompt you to add a DNS TXT record:</p>
+        <div class="code-block">
+            <div class="code-label">DNS TXT record to add</div>
+            <pre>Name : _acme-challenge.example.com
+Value: AbCdEfGhIjKlMnOpQrStUvWxYz123456789</pre>
+        </div>
+
+        <ol class="guide-list">
+            <li>Log in to your DNS provider</li>
+            <li>Add the TXT record shown by Certbot</li>
+            <li>Wait 1–2 minutes for DNS propagation</li>
+            <li>Press <kbd>Enter</kbd> in the terminal</li>
+            <li>Cert files saved to <code>/etc/letsencrypt/live/example.com/</code></li>
+        </ol>
+    </section>
+
+    <!-- ── Automated Methods ──────────────────────────────────── -->
+    <section class="card">
+        <h2>Method 2 — Automated (DNS API)</h2>
+        <p class="guide-note">Full automation — no manual steps. Requires a supported DNS provider.</p>
+
+        <div class="provider-grid">
+
+            <div class="provider-card">
+                <div class="provider-name">☁️ Cloudflare</div>
+                <div class="code-block">
+                    <pre>pip install certbot-dns-cloudflare
+
+# Create credentials file
+cat &gt; /etc/letsencrypt/cloudflare.ini &lt;&lt; EOF
+dns_cloudflare_api_token = YOUR_TOKEN
+EOF
+chmod 600 /etc/letsencrypt/cloudflare.ini
+
+sudo certbot certonly \
+  --dns-cloudflare \
+  --dns-cloudflare-credentials /etc/letsencrypt/cloudflare.ini \
+  -d "*.example.com" -d "example.com"</pre>
+                </div>
+            </div>
+
+            <div class="provider-card">
+                <div class="provider-name">🟠 AWS Route53</div>
+                <div class="code-block">
+                    <pre>pip install certbot-dns-route53
+
+# Ensure AWS credentials configured
+# (~/.aws/credentials or IAM role on EC2)
+
+sudo certbot certonly \
+  --dns-route53 \
+  -d "*.example.com" -d "example.com"</pre>
+                </div>
+            </div>
+
+            <div class="provider-card">
+                <div class="provider-name">🔵 DigitalOcean</div>
+                <div class="code-block">
+                    <pre>pip install certbot-dns-digitalocean
+
+cat &gt; /etc/letsencrypt/do.ini &lt;&lt; EOF
+dns_digitalocean_token = YOUR_DO_TOKEN
+EOF
+chmod 600 /etc/letsencrypt/do.ini
+
+sudo certbot certonly \
+  --dns-digitalocean \
+  --dns-digitalocean-credentials /etc/letsencrypt/do.ini \
+  -d "*.example.com" -d "example.com"</pre>
+                </div>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- ── Auto Renewal ───────────────────────────────────────── -->
+    <section class="card">
+        <h2>Auto-Renewal Setup</h2>
+        <p class="guide-note">Let's Encrypt certs expire every 90 days. Set up auto-renewal once.</p>
+
+        <div class="code-block">
+            <div class="code-label">Test renewal (dry run)</div>
+            <pre>sudo certbot renew --dry-run</pre>
+        </div>
+
+        <div class="code-block">
+            <div class="code-label">Check systemd timer (Ubuntu 24)</div>
+            <pre>sudo systemctl status certbot.timer</pre>
+        </div>
+
+        <div class="code-block">
+            <div class="code-label">Or add a cron job manually</div>
+            <pre>echo "0 3 * * * root certbot renew --quiet" | sudo tee /etc/cron.d/certbot</pre>
+        </div>
+    </section>
+
+    <!-- ── Nginx Config ───────────────────────────────────────── -->
+    <section class="card">
+        <h2>Use the Cert with Nginx</h2>
+
+        <div class="code-block">
+            <div class="code-label">/etc/nginx/sites-available/your-site</div>
+            <pre>server {
+    listen 443 ssl;
+    server_name *.example.com example.com;
+
+    ssl_certificate     /etc/letsencrypt/live/example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/example.com/privkey.pem;
+
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+
+server {
+    listen 80;
+    server_name *.example.com example.com;
+    return 301 https://$host$request_uri;
+}</pre>
+        </div>
+    </section>
+
+    <!-- ── Notes ─────────────────────────────────────────────── -->
+    <section class="card">
+        <h2>Important Notes</h2>
+        <ul class="guide-list">
+            <li>Wildcard certs cover <strong>one level only</strong> — <code>*.example.com</code> covers <code>app.example.com</code> but NOT <code>api.app.example.com</code></li>
+            <li>You need a separate entry for the apex domain (<code>example.com</code>) — add <code>-d "example.com"</code> alongside the wildcard</li>
+            <li>This tracker auto-detects wildcard certs via the Subject Alternative Name (SAN) field and shows them as <span class="badge-type wildcard">wildcard</span> in the dashboard</li>
+            <li>Full automation requires a DNS provider with an API — manual method works with any provider</li>
+        </ul>
+    </section>
+
+</main>
+
+<footer>
+    <p>Domain &amp; SSL Expiry Tracker &mdash;
+    <a href="/">Dashboard</a> &bull;
+    <a href="/settings">Mail Settings</a></p>
+</footer>
+
+</body>
+</html>

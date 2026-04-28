@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mail Settings — Domain & SSL Tracker</title>
+    <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+
+<header>
+    <div class="header-inner">
+        <h1>🔐 Domain &amp; SSL Expiry Tracker</h1>
+        <nav class="header-nav">
+            <a href="/">Dashboard</a>
+            <a href="/settings" class="active">Mail Settings</a>
+            <a href="/guide/wildcard-ssl">Wildcard SSL Guide</a>
+        </nav>
+    </div>
+</header>
+
+<main style="max-width: 720px;">
+
+    <h2 class="page-title">⚙️ Mail &amp; Alert Settings</h2>
+
+    {% if saved == '1' %}
+    <div class="alert alert-success">✅ Settings saved successfully.</div>
+    {% elif saved == 'test' %}
+    <div class="alert alert-success">✅ Test email sent! Check your inbox.</div>
+    {% elif error %}
+    <div class="alert alert-error">❌ {{ error }}</div>
+    {% endif %}
+
+    <form method="post" action="/settings">
+
+        <!-- ── SMTP Settings ─────────────────────────────────── -->
+        <section class="card">
+            <h2>SMTP Configuration</h2>
+
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>SMTP Host</label>
+                    <input type="text" name="smtp_host" value="{{ s.smtp_host }}"
+                           placeholder="smtp.gmail.com" />
+                    <span class="hint">Gmail: smtp.gmail.com &nbsp;|&nbsp; AWS SES: email-smtp.us-east-1.amazonaws.com</span>
+                </div>
+
+                <div class="form-group form-group-sm">
+                    <label>SMTP Port</label>
+                    <input type="number" name="smtp_port" value="{{ s.smtp_port }}"
+                           placeholder="587" min="1" max="65535" />
+                    <span class="hint">587 (TLS) or 465 (SSL)</span>
+                </div>
+            </div>
+
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>SMTP Username</label>
+                    <input type="text" name="smtp_user" value="{{ s.smtp_user }}"
+                           placeholder="your@gmail.com" autocomplete="off" />
+                </div>
+
+                <div class="form-group">
+                    <label>SMTP Password / App Password</label>
+                    <input type="password" name="smtp_password" value="{{ s.smtp_password }}"
+                           placeholder="••••••••••••••••" autocomplete="new-password" />
+                    <span class="hint">Gmail: use an <a href="https://myaccount.google.com/apppasswords" target="_blank">App Password</a>, not your account password.</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- ── Alert Email Addresses ─────────────────────────── -->
+        <section class="card">
+            <h2>Alert Email Addresses</h2>
+
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Send Alerts From</label>
+                    <input type="email" name="alert_from_email" value="{{ s.alert_from_email }}"
+                           placeholder="alerts@yourdomain.com" />
+                </div>
+
+                <div class="form-group">
+                    <label>Send Alerts To</label>
+                    <input type="email" name="alert_to_email" value="{{ s.alert_to_email }}"
+                           placeholder="admin@yourdomain.com" />
+                    <span class="hint">This address receives all SSL and domain expiry alerts.</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- ── Alert Thresholds ───────────────────────────────── -->
+        <section class="card">
+            <h2>Alert Thresholds</h2>
+
+            <div class="form-grid">
+                <div class="form-group form-group-sm">
+                    <label>SSL Alert (days before expiry)</label>
+                    <input type="number" name="ssl_alert_days" value="{{ s.ssl_alert_days }}"
+                           min="1" max="365" />
+                    <span class="hint">Default: 7 days</span>
+                </div>
+
+                <div class="form-group form-group-sm">
+                    <label>Domain Alert (days before expiry)</label>
+                    <input type="number" name="domain_alert_days" value="{{ s.domain_alert_days }}"
+                           min="1" max="365" />
+                    <span class="hint">Default: 30 days</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- ── Actions ───────────────────────────────────────── -->
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">💾 Save Settings</button>
+        </div>
+    </form>
+
+    <!-- Test email is a separate form so it uses saved settings -->
+    <form method="post" action="/settings/test-email" style="margin-top: 0.75rem;">
+        <button type="submit" class="btn btn-secondary">📧 Send Test Email</button>
+        <span class="hint" style="margin-left: 0.5rem;">Sends a test email to the "Send Alerts To" address using current saved settings.</span>
+    </form>
+
+    <!-- ── Gmail App Password Guide ──────────────────────────── -->
+    <section class="card" style="margin-top: 1.5rem;">
+        <h2>Gmail Setup Guide</h2>
+        <ol class="guide-list">
+            <li>Go to <a href="https://myaccount.google.com/security" target="_blank">Google Account → Security</a></li>
+            <li>Enable <strong>2-Step Verification</strong> if not already on</li>
+            <li>Go to <a href="https://myaccount.google.com/apppasswords" target="_blank">App Passwords</a></li>
+            <li>Select app: <strong>Mail</strong> → Select device: <strong>Other</strong> → name it "SSL Tracker"</li>
+            <li>Copy the 16-character password and paste it in the <strong>SMTP Password</strong> field above</li>
+            <li>Use your Gmail address as both SMTP Username and Send Alerts From</li>
+        </ol>
+    </section>
+
+</main>
+
+<footer>
+    <p>Domain &amp; SSL Expiry Tracker &mdash;
+    <a href="/">Dashboard</a> &bull;
+    <a href="/guide/wildcard-ssl">Wildcard SSL Guide</a></p>
+</footer>
+
+</body>
+</html>

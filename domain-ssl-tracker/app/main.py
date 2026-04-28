@@ -7,6 +7,7 @@ from app.database import init_db
 from app.scheduler import start_scheduler, stop_scheduler
 from app.routes import domains as domains_router
 from app.routes import dashboard as dashboard_router
+from app.routes import settings as settings_router
 
 setup_logging()
 
@@ -33,6 +34,9 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 # Dashboard (HTML routes)
 app.include_router(dashboard_router.router, tags=["Dashboard"])
+
+# Settings + guide pages
+app.include_router(settings_router.router, tags=["Settings"])
 
 # REST API routes
 app.include_router(domains_router.router, prefix="/api", tags=["API"])

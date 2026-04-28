@@ -19,5 +19,5 @@ def get_db():
 
 def init_db():
     """Create all tables."""
-    from app.models import domain  # noqa: F401 - import to register models
+    from app.models import domain, settings  # noqa: F401 - import to register models
     Base.metadata.create_all(bind=engine)

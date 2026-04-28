@@ -11,6 +11,11 @@
 <header>
     <div class="header-inner">
         <h1>🔐 Domain &amp; SSL Expiry Tracker</h1>
+        <nav class="header-nav">
+            <a href="/" class="active">Dashboard</a>
+            <a href="/settings">⚙️ Mail Settings</a>
+            <a href="/guide/wildcard-ssl">🔒 Wildcard SSL Guide</a>
+        </nav>
         <span class="header-sub">Last page load: {{ now.strftime('%Y-%m-%d %H:%M') }} UTC</span>
     </div>
 </header>
@@ -29,6 +34,7 @@
                 autocomplete="off"
             />
             <button type="submit" class="btn btn-primary">+ Add</button>
+            <button type="button" class="btn btn-secondary" onclick="openBulkImport()">📋 Bulk Import</button>
         </form>
     </section>
 
@@ -93,7 +99,7 @@
                     <td class="domain-name">
                         <a href="https://{{ d.domain_name }}" target="_blank" rel="noopener">{{ d.domain_name }}</a>
                         {% if d.ssl_error %}
-                        <div class="ssl-error" title="{{ d.ssl_error }}">⚠ {{ d.ssl_error }}</div>
+                        <div class="ssl-error" title="{{ d.ssl_error }}">⚠ {{ d.ssl_error[:60] }}{% if d.ssl_error|length > 60 %}…{% endif %}</div>
                         {% endif %}
                     </td>
 
@@ -214,6 +220,34 @@
 
 </main>
 
+<!-- ── Bulk Import Modal ──────────────────────────────────────── -->
+<div id="bulk-modal" class="modal-overlay" style="display:none;" onclick="closeBulkOnOverlay(event)">
+    <div class="modal-box modal-lg">
+        <h3>📋 Bulk Import Domains</h3>
+        <form method="post" action="/bulk-import" enctype="multipart/form-data">
+
+            <div class="form-group">
+                <label>Upload File <span class="hint-inline">(plain text or CSV — one domain per line)</span></label>
+                <input type="file" name="file" accept=".txt,.csv" class="file-input" />
+            </div>
+
+            <div class="form-group" style="margin-top: 1rem;">
+                <label>Or paste domains <span class="hint-inline">(one per line)</span></label>
+                <textarea
+                    name="domains_text"
+                    rows="8"
+                    placeholder="example.com&#10;sub.example.com&#10;api.example.org&#10;# lines starting with # are ignored"
+                ></textarea>
+            </div>
+
+            <div class="modal-actions" style="margin-top: 1rem;">
+                <button type="submit" class="btn btn-primary">⬆ Import</button>
+                <button type="button" class="btn btn-secondary" onclick="closeBulkImport()">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <!-- ── Edit Modal ─────────────────────────────────────────────── -->
 <div id="edit-modal" class="modal-overlay" style="display:none;" onclick="closeEditOnOverlay(event)">
     <div class="modal-box">
@@ -234,6 +268,17 @@
 </footer>
 
 <script>
+/* ── Bulk import modal ───────────────────────────────────────── */
+function openBulkImport() {
+    document.getElementById('bulk-modal').style.display = 'flex';
+}
+function closeBulkImport() {
+    document.getElementById('bulk-modal').style.display = 'none';
+}
+function closeBulkOnOverlay(e) {
+    if (e.target === document.getElementById('bulk-modal')) closeBulkImport();
+}
+
 /* ── Edit modal ──────────────────────────────────────────────── */
 function openEdit(btn) {
     document.getElementById('edit-form').action = '/edit-domain/' + btn.getAttribute('data-id');
@@ -247,7 +292,12 @@ function closeEdit() {
 function closeEditOnOverlay(e) {
     if (e.target === document.getElementById('edit-modal')) closeEdit();
 }
-document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeEdit(); });
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeEdit();
+        closeBulkImport();
+    }
+});
 
 /* ── Table sort ──────────────────────────────────────────────── */
 (function () {

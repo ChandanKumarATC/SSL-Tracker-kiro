@@ -63,7 +63,7 @@ def check_and_update_domain(db: Session, domain: Domain) -> dict:
     # --- SSL Alert ---
     ssl_days = _days_until(domain.ssl_expiry_date)
     if ssl_days is not None and ssl_days <= SSL_ALERT_DAYS and not domain.alert_sent_ssl:
-        sent = send_ssl_alert(domain.domain_name, domain.ssl_expiry_date, ssl_days)
+        sent = send_ssl_alert(domain.domain_name, domain.ssl_expiry_date, ssl_days, db=db)
         if sent:
             domain.alert_sent_ssl = True
             logger.info("SSL alert sent for %s (%d days left)", domain.domain_name, ssl_days)
@@ -71,7 +71,7 @@ def check_and_update_domain(db: Session, domain: Domain) -> dict:
     # --- Domain Alert ---
     domain_days = _days_until(domain.domain_expiry_date)
     if domain_days is not None and domain_days <= DOMAIN_ALERT_DAYS and not domain.alert_sent_domain:
-        sent = send_domain_alert(domain.domain_name, domain.domain_expiry_date, domain_days)
+        sent = send_domain_alert(domain.domain_name, domain.domain_expiry_date, domain_days, db=db)
         if sent:
             domain.alert_sent_domain = True
             logger.info("Domain alert sent for %s (%d days left)", domain.domain_name, domain_days)

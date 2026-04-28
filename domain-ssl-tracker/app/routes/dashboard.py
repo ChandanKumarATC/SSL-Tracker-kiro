@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Request, Form, HTTPException
+from fastapi import APIRouter, Depends, Request, Form, HTTPException, UploadFile, File
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
@@ -150,6 +150,63 @@ def edit_domain_form(
                 domain.alert_sent_ssl = False
                 domain.alert_sent_domain = False
                 db.commit()
+    return RedirectResponse(url="/", status_code=303)
+
+
+@router.post("/bulk-import", response_class=RedirectResponse)
+async def bulk_import(
+    file: UploadFile = File(None),
+    domains_text: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    """
+    Bulk import domains from either:
+      - A plain text / CSV file upload (one domain per line, or CSV with domain in first column)
+      - A textarea with one domain per line
+    Skips duplicates and invalid entries silently.
+    """
+    raw_lines = []
+
+    # ── From uploaded file ────────────────────────────────────────────────
+    if file and file.filename:
+        content = await file.read()
+        try:
+            text = content.decode("utf-8")
+        except UnicodeDecodeError:
+            text = content.decode("latin-1")
+        raw_lines.extend(text.splitlines())
+
+    # ── From textarea ─────────────────────────────────────────────────────
+    if domains_text.strip():
+        raw_lines.extend(domains_text.splitlines())
+
+    added = 0
+    for line in raw_lines:
+        # Strip whitespace and comments
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+
+        # CSV: take first column only
+        domain_name = line.split(",")[0].strip().strip('"').strip("'")
+
+        # Normalise
+        domain_name = domain_name.lower()
+        domain_name = domain_name.replace("https://", "").replace("http://", "").split("/")[0]
+
+        # Basic validation
+        if not domain_name or "." not in domain_name or " " in domain_name:
+            continue
+
+        # Skip duplicates
+        existing = db.query(Domain).filter(Domain.domain_name == domain_name).first()
+        if not existing:
+            db.add(Domain(domain_name=domain_name))
+            added += 1
+
+    if added:
+        db.commit()
+
     return RedirectResponse(url="/", status_code=303)
 
 
