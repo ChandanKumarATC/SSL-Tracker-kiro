@@ -586,3 +586,72 @@ kbd {
     .search-wrap { max-width: 100%; }
     .filter-result { margin-left: 0; }
 }
+
+/* ── Wildcard SSL Generator ──────────────────────────────────────────────── */
+.provider-select {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-top: 0.25rem;
+}
+.prov-btn {
+    padding: 0.4rem 0.9rem;
+    border-radius: var(--radius);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid var(--color-border);
+    background: var(--color-bg);
+    color: var(--color-muted);
+    transition: all 0.15s;
+    white-space: nowrap;
+}
+.prov-btn:hover { color: var(--color-text); border-color: var(--color-text); }
+.prov-btn.active { background: var(--color-primary); color: #fff; border-color: var(--color-primary); }
+
+.cred-section {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: rgba(99,102,241,0.06);
+    border: 1px solid rgba(99,102,241,0.2);
+    border-radius: var(--radius);
+}
+
+/* Copy button in code block header */
+.copy-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.copy-btn {
+    background: rgba(99,102,241,0.15);
+    border: 1px solid rgba(99,102,241,0.3);
+    color: #a5b4fc;
+    border-radius: 4px;
+    padding: 0.15rem 0.6rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.copy-btn:hover { background: rgba(99,102,241,0.3); }
+
+/* Cert paths table */
+.cert-paths { overflow-x: auto; }
+
+/* Copy toast notification */
+.copy-toast {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    background: var(--color-safe);
+    color: #fff;
+    padding: 0.6rem 1.2rem;
+    border-radius: var(--radius);
+    font-size: 0.88rem;
+    font-weight: 700;
+    box-shadow: var(--shadow);
+    z-index: 9999;
+    animation: fadeIn 0.2s ease;
+}
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }

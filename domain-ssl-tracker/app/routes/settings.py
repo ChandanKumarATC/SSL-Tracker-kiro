@@ -63,3 +63,9 @@ def test_email(db: Session = Depends(get_db)):
 def wildcard_guide(request: Request):
     """Wildcard SSL certificate guide page."""
     return templates.TemplateResponse("wildcard_guide.html", {"request": request})
+
+
+@router.get("/tools/wildcard-generator", response_class=HTMLResponse)
+def wildcard_generator(request: Request):
+    """Interactive wildcard SSL command generator tool."""
+    return templates.TemplateResponse("wildcard_generator.html", {"request": request})

@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Wildcard SSL Generator — Domain & SSL Tracker</title>
+    <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+
+<header>
+    <div class="header-inner">
+        <h1>🔐 Domain &amp; SSL Expiry Tracker</h1>
+        <nav class="header-nav">
+            <a href="/">Dashboard</a>
+            <a href="/settings">⚙️ Mail Settings</a>
+            <a href="/guide/wildcard-ssl">🔒 Wildcard SSL Guide</a>
+            <a href="/tools/wildcard-generator" class="active">🛠 SSL Generator</a>
+        </nav>
+    </div>
+</header>
+
+<main style="max-width: 860px;">
+
+    <h2 class="page-title">🛠 Wildcard SSL Command Generator</h2>
+    <p style="color:var(--color-muted); margin-bottom:1.5rem; font-size:0.9rem;">
+        Fill in the form below and get ready-to-run Certbot commands for your domain and DNS provider.
+    </p>
+
+    <!-- ── Input Form ─────────────────────────────────────────── -->
+    <section class="card">
+        <h2>Configuration</h2>
+
+        <div class="form-grid">
+            <div class="form-group">
+                <label>Domain Name <span style="color:var(--color-critical)">*</span></label>
+                <input type="text" id="gen-domain" placeholder="example.com" autocomplete="off" />
+                <span class="hint">Enter the root domain only — e.g. <code>example.com</code></span>
+            </div>
+
+            <div class="form-group">
+                <label>Email Address <span style="color:var(--color-critical)">*</span></label>
+                <input type="email" id="gen-email" placeholder="admin@example.com" autocomplete="off" />
+                <span class="hint">Used by Let's Encrypt for renewal notices</span>
+            </div>
+        </div>
+
+        <div class="form-group" style="margin-bottom:1rem;">
+            <label>DNS Provider</label>
+            <div class="provider-select">
+                <button class="prov-btn active" data-provider="manual">🌐 Manual (Any)</button>
+                <button class="prov-btn" data-provider="cloudflare">☁️ Cloudflare</button>
+                <button class="prov-btn" data-provider="route53">🟠 AWS Route53</button>
+                <button class="prov-btn" data-provider="digitalocean">🔵 DigitalOcean</button>
+                <button class="prov-btn" data-provider="godaddy">🟢 GoDaddy</button>
+            </div>
+        </div>
+
+        <!-- Provider-specific credential fields -->
+        <div id="cred-cloudflare" class="cred-section" style="display:none;">
+            <div class="form-group">
+                <label>Cloudflare API Token</label>
+                <input type="text" id="cf-token" placeholder="your_cloudflare_api_token" autocomplete="off" />
+                <span class="hint">Create at: Cloudflare Dashboard → My Profile → API Tokens → Create Token (Zone:DNS:Edit)</span>
+            </div>
+        </div>
+
+        <div id="cred-route53" class="cred-section" style="display:none;">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>AWS Access Key ID</label>
+                    <input type="text" id="aws-key" placeholder="AKIAIOSFODNN7EXAMPLE" autocomplete="off" />
+                </div>
+                <div class="form-group">
+                    <label>AWS Secret Access Key</label>
+                    <input type="password" id="aws-secret" placeholder="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY" autocomplete="off" />
+                </div>
+            </div>
+            <span class="hint">Or leave blank if using an IAM role on EC2 (recommended)</span>
+        </div>
+
+        <div id="cred-digitalocean" class="cred-section" style="display:none;">
+            <div class="form-group">
+                <label>DigitalOcean API Token</label>
+                <input type="text" id="do-token" placeholder="your_digitalocean_api_token" autocomplete="off" />
+                <span class="hint">Create at: DigitalOcean Dashboard → API → Generate New Token</span>
+            </div>
+        </div>
+
+        <div id="cred-godaddy" class="cred-section" style="display:none;">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>GoDaddy API Key</label>
+                    <input type="text" id="gd-key" placeholder="your_api_key" autocomplete="off" />
+                </div>
+                <div class="form-group">
+                    <label>GoDaddy API Secret</label>
+                    <input type="password" id="gd-secret" placeholder="your_api_secret" autocomplete="off" />
+                </div>
+            </div>
+            <span class="hint">Create at: developer.godaddy.com → Keys → Create New API Key</span>
+        </div>
+
+        <div class="form-actions" style="margin-top:1.25rem;">
+            <button type="button" class="btn btn-primary" onclick="generateCommands()">⚡ Generate Commands</button>
+            <button type="button" class="btn btn-secondary" onclick="clearAll()">✕ Clear</button>
+        </div>
+    </section>
+
+    <!-- ── Generated Output ───────────────────────────────────── -->
+    <div id="output-section" style="display:none;">
+
+        <section class="card">
+            <h2>Step 1 — Install Certbot &amp; Plugin</h2>
+            <div class="code-block">
+                <div class="code-label copy-header">
+                    Install command
+                    <button class="copy-btn" onclick="copyBlock('install-cmd')">📋 Copy</button>
+                </div>
+                <pre id="install-cmd"></pre>
+            </div>
+        </section>
+
+        <section class="card" id="creds-section" style="display:none;">
+            <h2>Step 2 — Create Credentials File</h2>
+            <div class="code-block">
+                <div class="code-label copy-header">
+                    Credentials file
+                    <button class="copy-btn" onclick="copyBlock('creds-cmd')">📋 Copy</button>
+                </div>
+                <pre id="creds-cmd"></pre>
+            </div>
+        </section>
+
+        <section class="card">
+            <h2 id="certbot-step-label">Step 2 — Request Wildcard Certificate</h2>
+            <div class="code-block">
+                <div class="code-label copy-header">
+                    Certbot command
+                    <button class="copy-btn" onclick="copyBlock('certbot-cmd')">📋 Copy</button>
+                </div>
+                <pre id="certbot-cmd"></pre>
+            </div>
+        </section>
+
+        <section class="card" id="manual-steps-section" style="display:none;">
+            <h2>Manual DNS Steps</h2>
+            <ol class="guide-list">
+                <li>Certbot will display a TXT record value — copy it</li>
+                <li>Log in to your DNS provider</li>
+                <li>Add a <strong>TXT record</strong>: name <code id="acme-name"></code> → value shown by Certbot</li>
+                <li>Wait <strong>1–2 minutes</strong> for DNS propagation</li>
+                <li>Press <kbd>Enter</kbd> in the terminal to continue</li>
+            </ol>
+        </section>
+
+        <section class="card">
+            <h2>Step 3 — Verify Auto-Renewal</h2>
+            <div class="code-block">
+                <div class="code-label copy-header">
+                    Renewal test
+                    <button class="copy-btn" onclick="copyBlock('renew-cmd')">📋 Copy</button>
+                </div>
+                <pre id="renew-cmd"></pre>
+            </div>
+        </section>
+
+        <section class="card">
+            <h2>Step 4 — Nginx Config</h2>
+            <div class="code-block">
+                <div class="code-label copy-header">
+                    /etc/nginx/sites-available/your-site
+                    <button class="copy-btn" onclick="copyBlock('nginx-cmd')">📋 Copy</button>
+                </div>
+                <pre id="nginx-cmd"></pre>
+            </div>
+        </section>
+
+        <section class="card">
+            <h2>Certificate File Locations</h2>
+            <div class="cert-paths" id="cert-paths"></div>
+        </section>
+
+    </div>
+
+    <!-- ── Copy toast ─────────────────────────────────────────── -->
+    <div id="copy-toast" class="copy-toast" style="display:none;">✅ Copied to clipboard!</div>
+
+</main>
+
+<footer>
+    <p>Domain &amp; SSL Expiry Tracker &mdash;
+    <a href="/">Dashboard</a> &bull;
+    <a href="/guide/wildcard-ssl">Wildcard SSL Guide</a> &bull;
+    <a href="/settings">Mail Settings</a></p>
+</footer>
+
+<script>
+var selectedProvider = 'manual';
+
+/* ── Provider button selection ── */
+document.querySelectorAll('.prov-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        document.querySelectorAll('.prov-btn').forEach(function(b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+        selectedProvider = btn.getAttribute('data-provider');
+
+        /* Show/hide credential sections */
+        document.querySelectorAll('.cred-section').forEach(function(s) { s.style.display = 'none'; });
+        var credSection = document.getElementById('cred-' + selectedProvider);
+        if (credSection) credSection.style.display = 'block';
+    });
+});
+
+/* ── Generate commands ── */
+function generateCommands() {
+    var domain = document.getElementById('gen-domain').value.trim().toLowerCase();
+    var email  = document.getElementById('gen-email').value.trim();
+
+    /* Strip protocol if pasted */
+    domain = domain.replace(/^https?:\/\//, '').split('/')[0];
+
+    if (!domain || domain.indexOf('.') === -1) {
+        alert('Please enter a valid domain name (e.g. example.com)');
+        return;
+    }
+    if (!email || email.indexOf('@') === -1) {
+        alert('Please enter a valid email address');
+        return;
+    }
+
+    var p = selectedProvider;
+    var certPath = '/etc/letsencrypt/live/' + domain;
+
+    /* ── Install command ── */
+    var installCmd = '';
+    if (p === 'manual') {
+        installCmd = 'sudo apt update\nsudo apt install -y certbot';
+    } else if (p === 'cloudflare') {
+        installCmd = 'sudo apt update\nsudo apt install -y certbot\npip install certbot-dns-cloudflare';
+    } else if (p === 'route53') {
+        installCmd = 'sudo apt update\nsudo apt install -y certbot\npip install certbot-dns-route53\n\n# Also install AWS CLI if not present\nsudo apt install -y awscli';
+    } else if (p === 'digitalocean') {
+        installCmd = 'sudo apt update\nsudo apt install -y certbot\npip install certbot-dns-digitalocean';
+    } else if (p === 'godaddy') {
+        installCmd = 'sudo apt update\nsudo apt install -y certbot\npip install certbot-dns-godaddy';
+    }
+    document.getElementById('install-cmd').textContent = installCmd;
+
+    /* ── Credentials file ── */
+    var credsSection = document.getElementById('creds-section');
+    var credsCmd = '';
+    if (p === 'cloudflare') {
+        var cfToken = document.getElementById('cf-token').value.trim() || 'YOUR_CLOUDFLARE_API_TOKEN';
+        credsCmd = '# Create credentials file\ncat > /etc/letsencrypt/cloudflare.ini << EOF\ndns_cloudflare_api_token = ' + cfToken + '\nEOF\nchmod 600 /etc/letsencrypt/cloudflare.ini';
+        credsSection.style.display = 'block';
+    } else if (p === 'route53') {
+        var awsKey    = document.getElementById('aws-key').value.trim();
+        var awsSecret = document.getElementById('aws-secret').value.trim();
+        if (awsKey && awsSecret) {
+            credsCmd = '# Configure AWS credentials\nmkdir -p ~/.aws\ncat > ~/.aws/credentials << EOF\n[default]\naws_access_key_id = ' + awsKey + '\naws_secret_access_key = ' + awsSecret + '\nEOF\nchmod 600 ~/.aws/credentials';
+        } else {
+            credsCmd = '# Using IAM role on EC2 — no credentials file needed.\n# Ensure the EC2 instance role has Route53 permissions:\n# route53:ListHostedZones\n# route53:GetChange\n# route53:ChangeResourceRecordSets';
+        }
+        credsSection.style.display = 'block';
+    } else if (p === 'digitalocean') {
+        var doToken = document.getElementById('do-token').value.trim() || 'YOUR_DO_API_TOKEN';
+        credsCmd = '# Create credentials file\ncat > /etc/letsencrypt/digitalocean.ini << EOF\ndns_digitalocean_token = ' + doToken + '\nEOF\nchmod 600 /etc/letsencrypt/digitalocean.ini';
+        credsSection.style.display = 'block';
+    } else if (p === 'godaddy') {
+        var gdKey    = document.getElementById('gd-key').value.trim()    || 'YOUR_GODADDY_API_KEY';
+        var gdSecret = document.getElementById('gd-secret').value.trim() || 'YOUR_GODADDY_API_SECRET';
+        credsCmd = '# Create credentials file\ncat > /etc/letsencrypt/godaddy.ini << EOF\ndns_godaddy_key    = ' + gdKey + '\ndns_godaddy_secret = ' + gdSecret + '\nEOF\nchmod 600 /etc/letsencrypt/godaddy.ini';
+        credsSection.style.display = 'block';
+    } else {
+        credsSection.style.display = 'none';
+    }
+    document.getElementById('creds-cmd').textContent = credsCmd;
+
+    /* ── Certbot command ── */
+    var certbotCmd = '';
+    var stepLabel  = document.getElementById('certbot-step-label');
+    var manualSteps = document.getElementById('manual-steps-section');
+
+    if (p === 'manual') {
+        certbotCmd = 'sudo certbot certonly \\\n  --manual \\\n  --preferred-challenges dns \\\n  --email ' + email + ' \\\n  --agree-tos \\\n  --no-eff-email \\\n  -d "*.' + domain + '" \\\n  -d "' + domain + '"';
+        stepLabel.textContent = 'Step 2 — Request Wildcard Certificate';
+        manualSteps.style.display = 'block';
+        document.getElementById('acme-name').textContent = '_acme-challenge.' + domain;
+    } else if (p === 'cloudflare') {
+        certbotCmd = 'sudo certbot certonly \\\n  --dns-cloudflare \\\n  --dns-cloudflare-credentials /etc/letsencrypt/cloudflare.ini \\\n  --email ' + email + ' \\\n  --agree-tos \\\n  --no-eff-email \\\n  -d "*.' + domain + '" \\\n  -d "' + domain + '"';
+        stepLabel.textContent = 'Step 3 — Request Wildcard Certificate';
+        manualSteps.style.display = 'none';
+    } else if (p === 'route53') {
+        certbotCmd = 'sudo certbot certonly \\\n  --dns-route53 \\\n  --email ' + email + ' \\\n  --agree-tos \\\n  --no-eff-email \\\n  -d "*.' + domain + '" \\\n  -d "' + domain + '"';
+        stepLabel.textContent = 'Step 3 — Request Wildcard Certificate';
+        manualSteps.style.display = 'none';
+    } else if (p === 'digitalocean') {
+        certbotCmd = 'sudo certbot certonly \\\n  --dns-digitalocean \\\n  --dns-digitalocean-credentials /etc/letsencrypt/digitalocean.ini \\\n  --email ' + email + ' \\\n  --agree-tos \\\n  --no-eff-email \\\n  -d "*.' + domain + '" \\\n  -d "' + domain + '"';
+        stepLabel.textContent = 'Step 3 — Request Wildcard Certificate';
+        manualSteps.style.display = 'none';
+    } else if (p === 'godaddy') {
+        certbotCmd = 'sudo certbot certonly \\\n  --dns-godaddy \\\n  --dns-godaddy-credentials /etc/letsencrypt/godaddy.ini \\\n  --email ' + email + ' \\\n  --agree-tos \\\n  --no-eff-email \\\n  -d "*.' + domain + '" \\\n  -d "' + domain + '"';
+        stepLabel.textContent = 'Step 3 — Request Wildcard Certificate';
+        manualSteps.style.display = 'none';
+    }
+    document.getElementById('certbot-cmd').textContent = certbotCmd;
+
+    /* ── Renewal ── */
+    document.getElementById('renew-cmd').textContent =
+        '# Test renewal\nsudo certbot renew --dry-run\n\n# Check auto-renewal timer\nsudo systemctl status certbot.timer';
+
+    /* ── Nginx config ── */
+    document.getElementById('nginx-cmd').textContent =
+        'server {\n    listen 443 ssl;\n    server_name *.' + domain + ' ' + domain + ';\n\n    ssl_certificate     ' + certPath + '/fullchain.pem;\n    ssl_certificate_key ' + certPath + '/privkey.pem;\n    include             /etc/letsencrypt/options-ssl-nginx.conf;\n    ssl_dhparam         /etc/letsencrypt/ssl-dhparams.pem;\n\n    location / {\n        proxy_pass         http://127.0.0.1:8000;\n        proxy_set_header   Host              $host;\n        proxy_set_header   X-Real-IP         $remote_addr;\n        proxy_set_header   X-Forwarded-Proto $scheme;\n    }\n}\n\nserver {\n    listen 80;\n    server_name *.' + domain + ' ' + domain + ';\n    return 301 https://$host$request_uri;\n}';
+
+    /* ── Cert paths ── */
+    document.getElementById('cert-paths').innerHTML =
+        '<table style="width:100%;font-size:0.85rem;border-collapse:collapse;">' +
+        '<tr><td style="padding:0.5rem 0.75rem;border-bottom:1px solid var(--color-border);color:var(--color-muted);width:140px;">Full chain</td>' +
+        '<td style="padding:0.5rem 0.75rem;border-bottom:1px solid var(--color-border);"><code>' + certPath + '/fullchain.pem</code></td></tr>' +
+        '<tr><td style="padding:0.5rem 0.75rem;border-bottom:1px solid var(--color-border);color:var(--color-muted);">Private key</td>' +
+        '<td style="padding:0.5rem 0.75rem;border-bottom:1px solid var(--color-border);"><code>' + certPath + '/privkey.pem</code></td></tr>' +
+        '<tr><td style="padding:0.5rem 0.75rem;border-bottom:1px solid var(--color-border);color:var(--color-muted);">Certificate</td>' +
+        '<td style="padding:0.5rem 0.75rem;border-bottom:1px solid var(--color-border);"><code>' + certPath + '/cert.pem</code></td></tr>' +
+        '<tr><td style="padding:0.5rem 0.75rem;color:var(--color-muted);">Chain only</td>' +
+        '<td style="padding:0.5rem 0.75rem;"><code>' + certPath + '/chain.pem</code></td></tr>' +
+        '</table>';
+
+    /* Show output */
+    document.getElementById('output-section').style.display = 'block';
+    document.getElementById('output-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function clearAll() {
+    document.getElementById('gen-domain').value = '';
+    document.getElementById('gen-email').value = '';
+    document.getElementById('output-section').style.display = 'none';
+    document.querySelectorAll('.cred-section').forEach(function(s) { s.style.display = 'none'; });
+    document.querySelectorAll('.prov-btn').forEach(function(b) { b.classList.remove('active'); });
+    document.querySelector('.prov-btn[data-provider="manual"]').classList.add('active');
+    selectedProvider = 'manual';
+}
+
+/* ── Copy to clipboard ── */
+function copyBlock(id) {
+    var text = document.getElementById(id).textContent;
+    navigator.clipboard.writeText(text).then(function() {
+        var toast = document.getElementById('copy-toast');
+        toast.style.display = 'block';
+        setTimeout(function() { toast.style.display = 'none'; }, 2000);
+    }).catch(function() {
+        /* Fallback for older browsers */
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+    });
+}
+</script>
+
+</body>
+</html>

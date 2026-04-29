@@ -15,8 +15,9 @@
             <a href="/" class="active">Dashboard</a>
             <a href="/settings">⚙️ Mail Settings</a>
             <a href="/guide/wildcard-ssl">🔒 Wildcard SSL Guide</a>
+            <a href="/tools/wildcard-generator">🛠 SSL Generator</a>
         </nav>
-        <span class="header-sub">Last page load: {{ now.strftime('%Y-%m-%d %H:%M') }} UTC</span>
+        <span class="header-sub">Last page load: {{ now.strftime('%d-%b-%Y %H:%M').upper() }} UTC</span>
     </div>
 </header>
 
@@ -109,7 +110,7 @@
                     </td>
 
                     <td data-val="{{ d.ssl_expiry_date.strftime('%Y-%m-%d') if d.ssl_expiry_date else '9999-99-99' }}">
-                        {% if d.ssl_expiry_date %}{{ d.ssl_expiry_date.strftime('%Y-%m-%d') }}
+                        {% if d.ssl_expiry_date %}{{ d.ssl_expiry_date.strftime('%d-%b-%Y').upper() }}
                         {% else %}<span class="na">—</span>{% endif %}
                     </td>
 
@@ -120,7 +121,7 @@
                     </td>
 
                     <td data-val="{{ d.domain_expiry_date.strftime('%Y-%m-%d') if d.domain_expiry_date else '9999-99-99' }}">
-                        {% if d.domain_expiry_date %}{{ d.domain_expiry_date.strftime('%Y-%m-%d') }}
+                        {% if d.domain_expiry_date %}{{ d.domain_expiry_date.strftime('%d-%b-%Y').upper() }}
                         {% else %}<span class="na">—</span>{% endif %}
                     </td>
 
@@ -150,7 +151,7 @@
                     </td>
 
                     <td class="last-checked" data-val="{{ d.last_checked.strftime('%Y-%m-%d %H:%M') if d.last_checked else '0000-00-00 00:00' }}">
-                        {% if d.last_checked %}{{ d.last_checked.strftime('%Y-%m-%d %H:%M') }}
+                        {% if d.last_checked %}{{ d.last_checked.strftime('%d-%b-%Y %H:%M').upper() }}
                         {% else %}<span class="na">Never</span>{% endif %}
                     </td>
 
