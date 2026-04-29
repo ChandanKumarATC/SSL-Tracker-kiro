@@ -44,28 +44,36 @@
             <button type="submit" class="btn btn-secondary">🔄 Check All Now</button>
         </form>
         <a href="/export-csv" class="btn btn-outline">⬇ Export CSV</a>
-        <span class="domain-count">{{ domains|length }} domain{{ 's' if domains|length != 1 else '' }} tracked</span>
+        <span class="domain-count" id="total-count">{{ domains|length }} domain{{ 's' if domains|length != 1 else '' }} tracked</span>
     </section>
 
-    <!-- ── Legend ─────────────────────────────────────────────── -->
-    <section class="legend">
-        <span class="badge safe">● Safe</span>
-        <span class="badge warning">● Expiring Soon (&le;30d)</span>
-        <span class="badge critical">● Critical (&le;14d)</span>
-        <span class="badge expired">● Expired</span>
-        <span class="badge unknown">● Unknown</span>
+    <!-- ── Search & Filter Bar ────────────────────────────────── -->
+    <section class="search-filter-bar">
+        <div class="search-wrap">
+            <span class="search-icon">🔍</span>
+            <input
+                type="text"
+                id="search-input"
+                placeholder="Search domain name or issuer…"
+                autocomplete="off"
+            />
+            <button type="button" id="search-clear" class="search-clear" title="Clear" style="display:none;">✕</button>
+        </div>
+        <div class="filter-btns">
+            <button class="filter-btn active" data-filter="all">All <span class="filter-count" id="fc-all"></span></button>
+            <button class="filter-btn filter-expired"  data-filter="expired">Expired <span class="filter-count" id="fc-expired"></span></button>
+            <button class="filter-btn filter-critical" data-filter="critical">Critical (&le;14d) <span class="filter-count" id="fc-critical"></span></button>
+            <button class="filter-btn filter-warning"  data-filter="warning">Warning (&le;30d) <span class="filter-count" id="fc-warning"></span></button>
+            <button class="filter-btn filter-safe"     data-filter="safe">Safe <span class="filter-count" id="fc-safe"></span></button>
+            <button class="filter-btn filter-unknown"  data-filter="unknown">Unknown <span class="filter-count" id="fc-unknown"></span></button>
+        </div>
+        <span class="filter-result" id="filter-result"></span>
     </section>
 
     <!-- ── Domain Table ───────────────────────────────────────── -->
     {% if domains %}
     <section class="card table-card">
         <div class="table-wrapper">
-            <!--
-                data-sort-col  : currently sorted column index (2 = SSL Days)
-                data-sort-dir  : "asc" or "desc"
-                Each <th data-col="N"> is clickable to sort by that column.
-                Each <tr> carries data-ssl and data-domain (numeric days, 99999 if unknown).
-            -->
             <table id="domain-table" data-sort-col="3" data-sort-dir="asc">
                 <thead>
                     <tr>
@@ -84,18 +92,15 @@
                 </thead>
                 <tbody>
                 {% for d in domains %}
-                <!--
-                    data-ssl    : SSL days remaining (99999 if unknown, negative if expired)
-                    data-domain : Domain days remaining (99999 if unknown, negative if expired)
-                -->
                 <tr class="row-{{ d.ssl_status if d.ssl_status != 'safe' else d.domain_status }}"
                     data-ssl="{{ d.ssl_days if d.ssl_days is not none else 99999 }}"
-                    data-domain="{{ d.domain_days if d.domain_days is not none else 99999 }}">
+                    data-domain="{{ d.domain_days if d.domain_days is not none else 99999 }}"
+                    data-status="{{ d.ssl_status if d.ssl_status != 'safe' else d.domain_status }}"
+                    data-name="{{ d.domain_name }}"
+                    data-issuer="{{ d.ssl_issuer or '' }}">
 
-                    <!-- 1. Row number (updated by JS after sort) -->
                     <td class="row-num">{{ loop.index }}</td>
 
-                    <!-- 2. Domain Name -->
                     <td class="domain-name">
                         <a href="https://{{ d.domain_name }}" target="_blank" rel="noopener">{{ d.domain_name }}</a>
                         {% if d.ssl_error %}
@@ -103,104 +108,58 @@
                         {% endif %}
                     </td>
 
-                    <!-- 3. SSL Expiry Date -->
                     <td data-val="{{ d.ssl_expiry_date.strftime('%Y-%m-%d') if d.ssl_expiry_date else '9999-99-99' }}">
-                        {% if d.ssl_expiry_date %}
-                            {{ d.ssl_expiry_date.strftime('%Y-%m-%d') }}
-                        {% else %}
-                            <span class="na">—</span>
-                        {% endif %}
+                        {% if d.ssl_expiry_date %}{{ d.ssl_expiry_date.strftime('%Y-%m-%d') }}
+                        {% else %}<span class="na">—</span>{% endif %}
                     </td>
 
-                    <!-- 4. SSL Days Remaining -->
                     <td data-val="{{ d.ssl_days if d.ssl_days is not none else 99999 }}">
                         {% if d.ssl_days is not none %}
-                            <span class="badge {{ d.ssl_status }}">
-                                {% if d.ssl_days < 0 %}Expired{% else %}{{ d.ssl_days }}d{% endif %}
-                            </span>
-                        {% else %}
-                            <span class="badge unknown">—</span>
-                        {% endif %}
+                            <span class="badge {{ d.ssl_status }}">{% if d.ssl_days < 0 %}Expired{% else %}{{ d.ssl_days }}d{% endif %}</span>
+                        {% else %}<span class="badge unknown">—</span>{% endif %}
                     </td>
 
-                    <!-- 5. Domain Expiry Date -->
                     <td data-val="{{ d.domain_expiry_date.strftime('%Y-%m-%d') if d.domain_expiry_date else '9999-99-99' }}">
-                        {% if d.domain_expiry_date %}
-                            {{ d.domain_expiry_date.strftime('%Y-%m-%d') }}
-                        {% else %}
-                            <span class="na">—</span>
-                        {% endif %}
+                        {% if d.domain_expiry_date %}{{ d.domain_expiry_date.strftime('%Y-%m-%d') }}
+                        {% else %}<span class="na">—</span>{% endif %}
                     </td>
 
-                    <!-- 6. Domain Days Remaining -->
                     <td data-val="{{ d.domain_days if d.domain_days is not none else 99999 }}">
                         {% if d.domain_days is not none %}
-                            <span class="badge {{ d.domain_status }}">
-                                {% if d.domain_days < 0 %}Expired{% else %}{{ d.domain_days }}d{% endif %}
-                            </span>
-                        {% else %}
-                            <span class="badge unknown">—</span>
-                        {% endif %}
+                            <span class="badge {{ d.domain_status }}">{% if d.domain_days < 0 %}Expired{% else %}{{ d.domain_days }}d{% endif %}</span>
+                        {% else %}<span class="badge unknown">—</span>{% endif %}
                     </td>
 
-                    <!-- 7. Overall Status -->
                     <td data-val="{{ d.ssl_days if d.ssl_days is not none else 99999 }}">
                         {% set worst = d.ssl_status if d.ssl_status != 'safe' else d.domain_status %}
-                        {% if worst == 'expired' %}
-                            <span class="badge expired">Expired</span>
-                        {% elif worst == 'critical' %}
-                            <span class="badge critical">Critical</span>
-                        {% elif worst == 'warning' %}
-                            <span class="badge warning">Warning</span>
-                        {% elif worst == 'safe' %}
-                            <span class="badge safe">Safe</span>
-                        {% else %}
-                            <span class="badge unknown">Unknown</span>
-                        {% endif %}
+                        {% if worst == 'expired' %}<span class="badge expired">Expired</span>
+                        {% elif worst == 'critical' %}<span class="badge critical">Critical</span>
+                        {% elif worst == 'warning' %}<span class="badge warning">Warning</span>
+                        {% elif worst == 'safe' %}<span class="badge safe">Safe</span>
+                        {% else %}<span class="badge unknown">Unknown</span>{% endif %}
                     </td>
 
-                    <!-- 8. SSL Type -->
                     <td>
-                        {% if d.ssl_type %}
-                            <span class="badge-type {{ d.ssl_type }}">{{ d.ssl_type }}</span>
-                        {% else %}
-                            <span class="na">—</span>
-                        {% endif %}
+                        {% if d.ssl_type %}<span class="badge-type {{ d.ssl_type }}">{{ d.ssl_type }}</span>
+                        {% else %}<span class="na">—</span>{% endif %}
                     </td>
 
-                    <!-- 9. SSL Issuer -->
                     <td class="issuer-cell">
-                        {% if d.ssl_issuer %}
-                            <span class="issuer-text" title="{{ d.ssl_issuer }}">{{ d.ssl_issuer }}</span>
-                        {% else %}
-                            <span class="na">—</span>
-                        {% endif %}
+                        {% if d.ssl_issuer %}<span class="issuer-text" title="{{ d.ssl_issuer }}">{{ d.ssl_issuer }}</span>
+                        {% else %}<span class="na">—</span>{% endif %}
                     </td>
 
-                    <!-- 10. Last Checked -->
                     <td class="last-checked" data-val="{{ d.last_checked.strftime('%Y-%m-%d %H:%M') if d.last_checked else '0000-00-00 00:00' }}">
-                        {% if d.last_checked %}
-                            {{ d.last_checked.strftime('%Y-%m-%d %H:%M') }}
-                        {% else %}
-                            <span class="na">Never</span>
-                        {% endif %}
+                        {% if d.last_checked %}{{ d.last_checked.strftime('%Y-%m-%d %H:%M') }}
+                        {% else %}<span class="na">Never</span>{% endif %}
                     </td>
 
-                    <!-- 11. Actions -->
                     <td class="actions">
-                        <button
-                            type="button"
-                            class="btn btn-sm btn-secondary"
-                            title="Edit domain"
-                            data-id="{{ d.id }}"
-                            data-name="{{ d.domain_name }}"
-                            onclick="openEdit(this)"
-                        >✏</button>
-
+                        <button type="button" class="btn btn-sm btn-secondary" title="Edit"
+                            data-id="{{ d.id }}" data-name="{{ d.domain_name }}" onclick="openEdit(this)">✏</button>
                         <form method="post" action="/check-domain/{{ d.id }}" style="display:inline;">
                             <button type="submit" class="btn btn-sm btn-secondary" title="Check now">🔄</button>
                         </form>
-
                         <form method="post" action="/delete-domain/{{ d.id }}" style="display:inline;"
                               onsubmit="return confirm('Delete {{ d.domain_name }}?')">
                             <button type="submit" class="btn btn-sm btn-danger" title="Delete">🗑</button>
@@ -225,21 +184,15 @@
     <div class="modal-box modal-lg">
         <h3>📋 Bulk Import Domains</h3>
         <form method="post" action="/bulk-import" enctype="multipart/form-data">
-
             <div class="form-group">
                 <label>Upload File <span class="hint-inline">(plain text or CSV — one domain per line)</span></label>
                 <input type="file" name="file" accept=".txt,.csv" class="file-input" />
             </div>
-
             <div class="form-group" style="margin-top: 1rem;">
                 <label>Or paste domains <span class="hint-inline">(one per line)</span></label>
-                <textarea
-                    name="domains_text"
-                    rows="8"
-                    placeholder="example.com&#10;sub.example.com&#10;api.example.org&#10;# lines starting with # are ignored"
-                ></textarea>
+                <textarea name="domains_text" rows="8"
+                    placeholder="example.com&#10;sub.example.com&#10;api.example.org&#10;# lines starting with # are ignored"></textarea>
             </div>
-
             <div class="modal-actions" style="margin-top: 1rem;">
                 <button type="submit" class="btn btn-primary">⬆ Import</button>
                 <button type="button" class="btn btn-secondary" onclick="closeBulkImport()">Cancel</button>
@@ -269,15 +222,9 @@
 
 <script>
 /* ── Bulk import modal ───────────────────────────────────────── */
-function openBulkImport() {
-    document.getElementById('bulk-modal').style.display = 'flex';
-}
-function closeBulkImport() {
-    document.getElementById('bulk-modal').style.display = 'none';
-}
-function closeBulkOnOverlay(e) {
-    if (e.target === document.getElementById('bulk-modal')) closeBulkImport();
-}
+function openBulkImport() { document.getElementById('bulk-modal').style.display = 'flex'; }
+function closeBulkImport() { document.getElementById('bulk-modal').style.display = 'none'; }
+function closeBulkOnOverlay(e) { if (e.target === document.getElementById('bulk-modal')) closeBulkImport(); }
 
 /* ── Edit modal ──────────────────────────────────────────────── */
 function openEdit(btn) {
@@ -286,89 +233,141 @@ function openEdit(btn) {
     document.getElementById('edit-modal').style.display = 'flex';
     document.getElementById('edit-input').focus();
 }
-function closeEdit() {
-    document.getElementById('edit-modal').style.display = 'none';
-}
-function closeEditOnOverlay(e) {
-    if (e.target === document.getElementById('edit-modal')) closeEdit();
-}
+function closeEdit() { document.getElementById('edit-modal').style.display = 'none'; }
+function closeEditOnOverlay(e) { if (e.target === document.getElementById('edit-modal')) closeEdit(); }
 document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') {
-        closeEdit();
-        closeBulkImport();
-    }
+    if (e.key === 'Escape') { closeEdit(); closeBulkImport(); }
 });
 
-/* ── Table sort ──────────────────────────────────────────────── */
+/* ── Search + Filter + Sort ──────────────────────────────────── */
 (function () {
     var table = document.getElementById('domain-table');
     if (!table) return;
 
-    var tbody = table.querySelector('tbody');
+    var tbody   = table.querySelector('tbody');
     var headers = table.querySelectorAll('th[data-col]');
+    var allRows = Array.from(tbody.querySelectorAll('tr'));
 
-    // Current sort state (default: col 3 = SSL Days, ascending)
-    var sortCol = parseInt(table.getAttribute('data-sort-col'), 10);
-    var sortDir = table.getAttribute('data-sort-dir'); // "asc" | "desc"
+    var sortCol      = parseInt(table.getAttribute('data-sort-col'), 10);
+    var sortDir      = table.getAttribute('data-sort-dir');
+    var activeFilter = 'all';
+    var searchTerm   = '';
 
-    // Attach click handlers to sortable headers
+    /* ── Sort header clicks ── */
     headers.forEach(function (th) {
         if (!th.classList.contains('sortable')) return;
         th.style.cursor = 'pointer';
         th.addEventListener('click', function () {
             var col = parseInt(th.getAttribute('data-col'), 10);
-            if (col === sortCol) {
-                sortDir = sortDir === 'asc' ? 'desc' : 'asc';
-            } else {
-                sortCol = col;
-                sortDir = 'asc';
-            }
-            applySort();
+            sortDir = (col === sortCol) ? (sortDir === 'asc' ? 'desc' : 'asc') : 'asc';
+            sortCol = col;
+            render();
         });
     });
 
-    function getCellValue(row, colIndex) {
-        var cells = row.querySelectorAll('td');
-        var cell = cells[colIndex]; // 0-indexed: col 1 = cells[1], etc.
-        if (!cell) return '';
-        // Prefer data-val for numeric/date columns
-        var val = cell.getAttribute('data-val');
-        if (val !== null) return val;
-        return cell.textContent.trim();
+    /* ── Filter button clicks ── */
+    document.querySelectorAll('.filter-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            activeFilter = btn.getAttribute('data-filter');
+            document.querySelectorAll('.filter-btn').forEach(function (b) { b.classList.remove('active'); });
+            btn.classList.add('active');
+            render();
+        });
+    });
+
+    /* ── Search input ── */
+    var searchInput = document.getElementById('search-input');
+    var searchClear = document.getElementById('search-clear');
+    if (searchInput) {
+        searchInput.addEventListener('input', function () {
+            searchTerm = searchInput.value.trim().toLowerCase();
+            searchClear.style.display = searchTerm ? 'inline-flex' : 'none';
+            render();
+        });
+    }
+    if (searchClear) {
+        searchClear.addEventListener('click', function () {
+            searchInput.value = '';
+            searchTerm = '';
+            searchClear.style.display = 'none';
+            searchInput.focus();
+            render();
+        });
     }
 
-    function applySort() {
-        var rows = Array.from(tbody.querySelectorAll('tr'));
-        var colIdx = sortCol; // th data-col matches td index (col 1 = td[1])
+    /* ── Cell value helper ── */
+    function getCellValue(row, colIndex) {
+        var cells = row.querySelectorAll('td');
+        var cell  = cells[colIndex];
+        if (!cell) return '';
+        var val = cell.getAttribute('data-val');
+        return val !== null ? val : cell.textContent.trim();
+    }
 
-        rows.sort(function (a, b) {
-            var av = getCellValue(a, colIdx);
-            var bv = getCellValue(b, colIdx);
+    /* ── Update filter count badges ── */
+    function updateCounts() {
+        var counts = { all: allRows.length, expired: 0, critical: 0, warning: 0, safe: 0, unknown: 0 };
+        allRows.forEach(function (row) {
+            var s = row.getAttribute('data-status') || 'unknown';
+            if (counts[s] !== undefined) counts[s]++;
+        });
+        Object.keys(counts).forEach(function (k) {
+            var el = document.getElementById('fc-' + k);
+            if (el) el.textContent = counts[k] ? '(' + counts[k] + ')' : '';
+        });
+    }
 
-            // Numeric sort for day columns (3, 4, 5, 6)
+    /* ── Main render: filter → sort → display ── */
+    function render() {
+        /* 1. Filter rows */
+        var filtered = allRows.filter(function (row) {
+            var status = row.getAttribute('data-status') || 'unknown';
+            var name   = (row.getAttribute('data-name')   || '').toLowerCase();
+            var issuer = (row.getAttribute('data-issuer') || '').toLowerCase();
+            var passFilter = (activeFilter === 'all') || (status === activeFilter);
+            var passSearch = !searchTerm || name.indexOf(searchTerm) !== -1 || issuer.indexOf(searchTerm) !== -1;
+            return passFilter && passSearch;
+        });
+
+        /* 2. Sort */
+        filtered.sort(function (a, b) {
+            var av = getCellValue(a, sortCol);
+            var bv = getCellValue(b, sortCol);
             var numericCols = [3, 4, 5, 6];
-            if (numericCols.indexOf(colIdx) !== -1) {
-                var an = parseFloat(av);
-                var bn = parseFloat(bv);
-                // Push 99999 (unknown) to the bottom regardless of sort direction
+            if (numericCols.indexOf(sortCol) !== -1) {
+                var an = parseFloat(av), bn = parseFloat(bv);
                 if (an === 99999 && bn !== 99999) return 1;
                 if (bn === 99999 && an !== 99999) return -1;
                 return sortDir === 'asc' ? an - bn : bn - an;
             }
-
-            // String / date sort for everything else
             if (av < bv) return sortDir === 'asc' ? -1 : 1;
-            if (av > bv) return sortDir === 'asc' ? 1 : -1;
+            if (av > bv) return sortDir === 'asc' ?  1 : -1;
             return 0;
         });
 
-        // Re-append rows in new order and update row numbers
-        rows.forEach(function (row, i) {
+        /* 3. Hide all, show filtered in sorted order */
+        allRows.forEach(function (row) { row.style.display = 'none'; });
+        filtered.forEach(function (row, i) {
+            row.style.display = '';
             row.querySelector('.row-num').textContent = i + 1;
             tbody.appendChild(row);
         });
 
-        // Update header indicators
+        /* 4. No-results row */
+        var noRow = document.getElementById('no-results-row');
+        if (filtered.length === 0) {
+            if (!noRow) {
+                noRow = document.createElement('tr');
+                noRow.id = 'no-results-row';
+                noRow.innerHTML = '<td colspan="11" style="text-align:center;padding:2rem;color:var(--color-muted);">No domains match your search or filter.</td>';
+                tbody.appendChild(noRow);
+            }
+            noRow.style.display = '';
+        } else if (noRow) {
+            noRow.style.display = 'none';
+        }
+
+        /* 5. Sort header indicators */
         headers.forEach(function (th) {
             th.classList.remove('th-active');
             var icon = th.querySelector('.sort-icon');
@@ -378,10 +377,18 @@ document.addEventListener('keydown', function(e) {
                 if (icon) icon.textContent = sortDir === 'asc' ? ' ▲' : ' ▼';
             }
         });
+
+        /* 6. Result count label */
+        var resultEl = document.getElementById('filter-result');
+        if (resultEl) {
+            resultEl.textContent = (filtered.length < allRows.length)
+                ? 'Showing ' + filtered.length + ' of ' + allRows.length
+                : '';
+        }
     }
 
-    // Run once on load to apply the default sort indicator
-    applySort();
+    updateCounts();
+    render();
 }());
 </script>
 
