@@ -80,24 +80,21 @@ def add_domain_form(
     request: Request,
     domain_name: str = Form(...),
     db: Session = Depends(get_db),
-    _: None = Depends(require_login),
 ):
-    """Handle add-domain form submission."""
+    """Handle add-domain form submission — public."""
     domain_name = domain_name.strip().lower()
     domain_name = domain_name.replace("https://", "").replace("http://", "").split("/")[0]
-
     existing = db.query(Domain).filter(Domain.domain_name == domain_name).first()
     if not existing:
         new_domain = Domain(domain_name=domain_name)
         db.add(new_domain)
         db.commit()
-
     return RedirectResponse(url="/", status_code=303)
 
 
 @router.post("/delete-domain/{domain_id}", response_class=RedirectResponse)
 def delete_domain_form(domain_id: int, db: Session = Depends(get_db), _: None = Depends(require_login)):
-    """Handle delete button from dashboard."""
+    """Handle delete button — login required."""
     domain = db.query(Domain).filter(Domain.id == domain_id).first()
     if domain:
         db.delete(domain)
@@ -106,8 +103,8 @@ def delete_domain_form(domain_id: int, db: Session = Depends(get_db), _: None = 
 
 
 @router.post("/check-domain/{domain_id}", response_class=RedirectResponse)
-def check_domain_form(domain_id: int, db: Session = Depends(get_db), _: None = Depends(require_login)):
-    """Trigger a check for a single domain from the dashboard."""
+def check_domain_form(domain_id: int, db: Session = Depends(get_db)):
+    """Trigger a check for a single domain — public."""
     domain = db.query(Domain).filter(Domain.id == domain_id).first()
     if domain:
         check_and_update_domain(db, domain)
@@ -115,8 +112,8 @@ def check_domain_form(domain_id: int, db: Session = Depends(get_db), _: None = D
 
 
 @router.post("/check-all", response_class=RedirectResponse)
-def check_all_form(db: Session = Depends(get_db), _: None = Depends(require_login)):
-    """Trigger checks for all domains from the dashboard."""
+def check_all_form(db: Session = Depends(get_db)):
+    """Trigger checks for all domains — public."""
     run_all_checks(db)
     return RedirectResponse(url="/", status_code=303)
 
@@ -128,7 +125,7 @@ def edit_domain_form(
     db: Session = Depends(get_db),
     _: None = Depends(require_login),
 ):
-    """Handle inline edit of domain name from dashboard."""
+    """Handle inline edit of domain name — login required."""
     domain = db.query(Domain).filter(Domain.id == domain_id).first()
     if domain:
         new_name = domain_name.strip().lower()
@@ -157,14 +154,8 @@ async def bulk_import(
     file: UploadFile = File(None),
     domains_text: str = Form(""),
     db: Session = Depends(get_db),
-    _: None = Depends(require_login),
 ):
-    """
-    Bulk import domains from either:
-      - A plain text / CSV file upload (one domain per line, or CSV with domain in first column)
-      - A textarea with one domain per line
-    Skips duplicates and invalid entries silently.
-    """
+    """Bulk import domains — public."""
     raw_lines = []
 
     # ── From uploaded file ────────────────────────────────────────────────

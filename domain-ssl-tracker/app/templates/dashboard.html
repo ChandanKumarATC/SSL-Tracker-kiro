@@ -28,8 +28,7 @@
 
 <main>
 
-    <!-- ── Add Domain Form (login required) ───────────────────── -->
-    {% if logged_in %}
+    <!-- ── Add Domain Form — public ───────────────────────────── -->
     <section class="card">
         <h2>Add Domain</h2>
         <form method="post" action="/add-domain" class="add-form">
@@ -40,15 +39,12 @@
             <button type="button" class="btn btn-secondary" onclick="openBulkImport()">📋 Bulk Import</button>
         </form>
     </section>
-    {% endif %}
 
-    <!-- ── Action Bar ──────────────────────────────────────────── -->
+    <!-- ── Action Bar — public ─────────────────────────────────── -->
     <section class="action-bar">
-        {% if logged_in %}
         <form method="post" action="/check-all" style="display:inline;">
             <button type="submit" class="btn btn-secondary">🔄 Check All Now</button>
         </form>
-        {% endif %}
         <a href="/export-csv" class="btn btn-outline">⬇ Export CSV</a>
         <span class="domain-count" id="total-count">{{ domains|length }} domain{{ 's' if domains|length != 1 else '' }} tracked</span>
     </section>
@@ -161,18 +157,20 @@
                     </td>
 
                     <td class="actions">
-                        {% if logged_in %}
-                        <button type="button" class="btn btn-sm btn-secondary" title="Edit"
-                            data-id="{{ d.id }}" data-name="{{ d.domain_name }}" onclick="openEdit(this)">✏</button>
+                        <!-- Check now — always public -->
                         <form method="post" action="/check-domain/{{ d.id }}" style="display:inline;">
                             <button type="submit" class="btn btn-sm btn-secondary" title="Check now">🔄</button>
                         </form>
+                        {% if logged_in %}
+                        <!-- Edit & Delete — login required -->
+                        <button type="button" class="btn btn-sm btn-secondary" title="Edit"
+                            data-id="{{ d.id }}" data-name="{{ d.domain_name }}" onclick="openEdit(this)">✏</button>
                         <form method="post" action="/delete-domain/{{ d.id }}" style="display:inline;"
                               onsubmit="return confirm('Delete {{ d.domain_name }}?')">
                             <button type="submit" class="btn btn-sm btn-danger" title="Delete">🗑</button>
                         </form>
                         {% else %}
-                        <span class="na" title="Login to manage">—</span>
+                        <a href="/login" class="btn btn-sm btn-secondary" title="Login to edit/delete" style="opacity:0.5;">✏</a>
                         {% endif %}
                     </td>
                 </tr>
