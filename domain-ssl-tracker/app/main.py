@@ -8,6 +8,7 @@ from app.scheduler import start_scheduler, stop_scheduler
 from app.routes import domains as domains_router
 from app.routes import dashboard as dashboard_router
 from app.routes import settings as settings_router
+from app.routes import auth as auth_router
 
 setup_logging()
 
@@ -31,6 +32,9 @@ app = FastAPI(
 
 # Static files (CSS, JS)
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
+# Auth routes (login/logout) — public
+app.include_router(auth_router.router, tags=["Auth"])
 
 # Dashboard (HTML routes)
 app.include_router(dashboard_router.router, tags=["Dashboard"])

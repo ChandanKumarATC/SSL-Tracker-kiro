@@ -18,3 +18,8 @@ APP_PORT = int(os.getenv("APP_PORT", 8000))
 # Alert thresholds (days)
 SSL_ALERT_DAYS = 7
 DOMAIN_ALERT_DAYS = 30
+
+# Login credentials (set in .env)
+ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
+SECRET_KEY = os.getenv("SECRET_KEY", "change-this-secret-key-in-production")

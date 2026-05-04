@@ -39,26 +39,23 @@ a:hover { text-decoration: underline; }
 header {
     background: var(--color-surface);
     border-bottom: 1px solid var(--color-border);
-    padding: 1rem 2rem;
+    padding: 0.75rem 1.5rem;
 }
 .header-inner {
-    max-width: 1400px;
-    margin: 0 auto;
+    width: 100%;
     display: flex;
-    align-items: baseline;
+    align-items: center;
     gap: 1rem;
     flex-wrap: wrap;
 }
-header h1 { font-size: 1.4rem; font-weight: 700; }
-.header-sub { font-size: 0.8rem; color: var(--color-muted); }
+header h1 { font-size: 1.2rem; font-weight: 700; white-space: nowrap; }
+.header-sub { font-size: 0.78rem; color: var(--color-muted); margin-left: auto; white-space: nowrap; }
 
 /* ── Main ────────────────────────────────────────────────────────────────── */
 main {
-    max-width: 1400px;
-    margin: 0 auto;
-    padding: 1.5rem 2rem 3rem;
-    flex: 1;
     width: 100%;
+    padding: 1.25rem 1.5rem 3rem;
+    flex: 1;
 }
 
 /* ── Card ────────────────────────────────────────────────────────────────── */
@@ -655,3 +652,56 @@ kbd {
     animation: fadeIn 0.2s ease;
 }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ── Login Page ──────────────────────────────────────────────────────────── */
+.login-body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    background: var(--color-bg);
+}
+.login-wrap {
+    width: 100%;
+    max-width: 400px;
+    padding: 1rem;
+}
+.login-box {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 2.5rem 2rem;
+    box-shadow: var(--shadow);
+    text-align: center;
+}
+.login-logo { font-size: 2.5rem; margin-bottom: 0.5rem; }
+.login-title { font-size: 1.2rem; font-weight: 700; margin-bottom: 0.25rem; }
+.login-sub { font-size: 0.85rem; color: var(--color-muted); margin-bottom: 1.5rem; }
+.login-form { text-align: left; }
+.login-form .form-group label { color: var(--color-muted); }
+.login-form input {
+    width: 100%;
+    padding: 0.6rem 0.9rem;
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    color: var(--color-text);
+    font-size: 0.95rem;
+    outline: none;
+    transition: border-color 0.2s;
+}
+.login-form input:focus { border-color: var(--color-primary); }
+.login-btn {
+    width: 100%;
+    margin-top: 1.25rem;
+    padding: 0.65rem;
+    font-size: 0.95rem;
+    justify-content: center;
+}
+
+/* ── Responsive tweaks ───────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+    main { padding: 1rem; }
+    header { padding: 0.75rem 1rem; }
+    .header-sub { display: none; }
+}

@@ -13,9 +13,14 @@
         <h1>🔐 Domain &amp; SSL Expiry Tracker</h1>
         <nav class="header-nav">
             <a href="/" class="active">Dashboard</a>
+            {% if logged_in %}
             <a href="/settings">⚙️ Mail Settings</a>
             <a href="/guide/wildcard-ssl">🔒 Wildcard SSL Guide</a>
             <a href="/tools/wildcard-generator">🛠 SSL Generator</a>
+            <a href="/logout" class="btn btn-sm btn-secondary" style="padding:0.25rem 0.75rem;">🚪 Logout</a>
+            {% else %}
+            <a href="/login" class="btn btn-sm btn-primary" style="padding:0.25rem 0.75rem;">🔑 Login</a>
+            {% endif %}
         </nav>
         <span class="header-sub">Last page load: {{ now.strftime('%d-%b-%Y %H:%M').upper() }} UTC</span>
     </div>
@@ -23,27 +28,27 @@
 
 <main>
 
-    <!-- ── Add Domain Form ─────────────────────────────────────── -->
+    <!-- ── Add Domain Form (login required) ───────────────────── -->
+    {% if logged_in %}
     <section class="card">
         <h2>Add Domain</h2>
         <form method="post" action="/add-domain" class="add-form">
-            <input
-                type="text"
-                name="domain_name"
+            <input type="text" name="domain_name"
                 placeholder="e.g. example.com or sub.example.com"
-                required
-                autocomplete="off"
-            />
+                required autocomplete="off" />
             <button type="submit" class="btn btn-primary">+ Add</button>
             <button type="button" class="btn btn-secondary" onclick="openBulkImport()">📋 Bulk Import</button>
         </form>
     </section>
+    {% endif %}
 
     <!-- ── Action Bar ──────────────────────────────────────────── -->
     <section class="action-bar">
+        {% if logged_in %}
         <form method="post" action="/check-all" style="display:inline;">
             <button type="submit" class="btn btn-secondary">🔄 Check All Now</button>
         </form>
+        {% endif %}
         <a href="/export-csv" class="btn btn-outline">⬇ Export CSV</a>
         <span class="domain-count" id="total-count">{{ domains|length }} domain{{ 's' if domains|length != 1 else '' }} tracked</span>
     </section>
@@ -156,6 +161,7 @@
                     </td>
 
                     <td class="actions">
+                        {% if logged_in %}
                         <button type="button" class="btn btn-sm btn-secondary" title="Edit"
                             data-id="{{ d.id }}" data-name="{{ d.domain_name }}" onclick="openEdit(this)">✏</button>
                         <form method="post" action="/check-domain/{{ d.id }}" style="display:inline;">
@@ -165,6 +171,9 @@
                               onsubmit="return confirm('Delete {{ d.domain_name }}?')">
                             <button type="submit" class="btn btn-sm btn-danger" title="Delete">🗑</button>
                         </form>
+                        {% else %}
+                        <span class="na" title="Login to manage">—</span>
+                        {% endif %}
                     </td>
                 </tr>
                 {% endfor %}

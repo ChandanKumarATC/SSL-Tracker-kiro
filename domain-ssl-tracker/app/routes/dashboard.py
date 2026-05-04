@@ -9,6 +9,7 @@ from app.database import get_db
 from app.models.domain import Domain
 from app.services.checker import run_all_checks, check_and_update_domain
 from app.services.export_service import export_domains_csv
+from app.auth import is_logged_in, require_login
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -59,22 +60,18 @@ def _enrich(domain: Domain) -> dict:
 
 @router.get("/", response_class=HTMLResponse)
 def dashboard(request: Request, db: Session = Depends(get_db)):
-    """Main dashboard — sorted by SSL expiry days ascending (nearest first).
-    Domains with no SSL data yet go to the bottom."""
+    """Main dashboard — sorted by SSL expiry days ascending (nearest first)."""
     domains = db.query(Domain).all()
     enriched = [_enrich(d) for d in domains]
-
-    # Primary sort: SSL days remaining (None → bottom)
-    # Secondary sort: domain days remaining (None → bottom)
     enriched.sort(key=lambda x: (
         x["ssl_days"] if x["ssl_days"] is not None else 99999,
         x["domain_days"] if x["domain_days"] is not None else 99999,
     ))
-
     return templates.TemplateResponse("dashboard.html", {
         "request": request,
         "domains": enriched,
         "now": datetime.utcnow(),
+        "logged_in": is_logged_in(request),
     })
 
 
@@ -83,6 +80,7 @@ def add_domain_form(
     request: Request,
     domain_name: str = Form(...),
     db: Session = Depends(get_db),
+    _: None = Depends(require_login),
 ):
     """Handle add-domain form submission."""
     domain_name = domain_name.strip().lower()
@@ -98,7 +96,7 @@ def add_domain_form(
 
 
 @router.post("/delete-domain/{domain_id}", response_class=RedirectResponse)
-def delete_domain_form(domain_id: int, db: Session = Depends(get_db)):
+def delete_domain_form(domain_id: int, db: Session = Depends(get_db), _: None = Depends(require_login)):
     """Handle delete button from dashboard."""
     domain = db.query(Domain).filter(Domain.id == domain_id).first()
     if domain:
@@ -108,7 +106,7 @@ def delete_domain_form(domain_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/check-domain/{domain_id}", response_class=RedirectResponse)
-def check_domain_form(domain_id: int, db: Session = Depends(get_db)):
+def check_domain_form(domain_id: int, db: Session = Depends(get_db), _: None = Depends(require_login)):
     """Trigger a check for a single domain from the dashboard."""
     domain = db.query(Domain).filter(Domain.id == domain_id).first()
     if domain:
@@ -117,7 +115,7 @@ def check_domain_form(domain_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/check-all", response_class=RedirectResponse)
-def check_all_form(db: Session = Depends(get_db)):
+def check_all_form(db: Session = Depends(get_db), _: None = Depends(require_login)):
     """Trigger checks for all domains from the dashboard."""
     run_all_checks(db)
     return RedirectResponse(url="/", status_code=303)
@@ -128,6 +126,7 @@ def edit_domain_form(
     domain_id: int,
     domain_name: str = Form(...),
     db: Session = Depends(get_db),
+    _: None = Depends(require_login),
 ):
     """Handle inline edit of domain name from dashboard."""
     domain = db.query(Domain).filter(Domain.id == domain_id).first()
@@ -158,6 +157,7 @@ async def bulk_import(
     file: UploadFile = File(None),
     domains_text: str = Form(""),
     db: Session = Depends(get_db),
+    _: None = Depends(require_login),
 ):
     """
     Bulk import domains from either:
